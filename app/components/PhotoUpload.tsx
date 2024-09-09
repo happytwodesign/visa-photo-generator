@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { X } from 'lucide-react'; // Assuming you're using lucide-react for icons
 
 interface PhotoUploadProps {
   onUpload: (file: File) => void;
@@ -27,14 +28,15 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
         <div className="w-full h-full relative">
           <img 
             src={uploadedPhotoUrl} 
-            alt="Uploaded" 
-            className="w-full h-full object-cover rounded-[10px]" 
+            alt="Uploaded photo" 
+            className="w-full h-full object-cover"
           />
-          <button 
-            onClick={(e) => { e.stopPropagation(); onDelete(); }} 
-            className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md"
+          <button
+            onClick={onDelete}
+            className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+            aria-label="Remove photo"
           >
-            X
+            <X size={24} className="text-gray-600" />
           </button>
         </div>
       ) : (

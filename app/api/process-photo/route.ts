@@ -91,48 +91,25 @@ async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): P
   const targetWidth = SCHENGEN_PHOTO_REQUIREMENTS.width * 10; // 350 pixels
   const targetHeight = SCHENGEN_PHOTO_REQUIREMENTS.height * 10; // 450 pixels
 
-  // Calculate scaling factors
-  const scaleX = targetWidth / originalWidth;
-  const scaleY = targetHeight / originalHeight;
-  const scale = Math.min(scaleX, scaleY);
-
-  // Calculate dimensions to maintain aspect ratio
-  const resizeWidth = Math.round(originalWidth * scale);
-  const resizeHeight = Math.round(originalHeight * scale);
-
-  // Resize the image while maintaining aspect ratio
-  image = image.resize(resizeWidth, resizeHeight, { fit: 'contain' });
-
-  // Create a white canvas of the target size
-  const canvas = sharp({
-    create: {
-      width: targetWidth,
-      height: targetHeight,
-      channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 1 }
-    }
-  });
-
-  // Calculate position to center the image
-  const left = Math.round((targetWidth - resizeWidth) / 2);
-  const top = Math.round((targetHeight - resizeHeight) / 2);
-
-  // Composite the resized image onto the white canvas
-  image = await canvas.composite([{ input: await image.toBuffer(), left, top }]);
-
   if (config.fitFace) {
     try {
-      const faceDetectionResult = await detectFace(await image.toBuffer());
+      const faceDetectionResult = await detectFace(buffer);
       if (faceDetectionResult) {
         image = await adjustFacePosition(image, faceDetectionResult.detection, faceDetectionResult.landmarks, targetWidth, targetHeight);
         console.log('Face detected and adjusted');
       } else {
         console.warn('No face detected. Proceeding with centered image.');
+        // If no face is detected, center the image
+        image = await centerImage(image, targetWidth, targetHeight);
       }
     } catch (error) {
       console.error('Face detection failed:', error);
-      // Proceed without face adjustment if detection fails or times out
+      // If face detection fails, center the image
+      image = await centerImage(image, targetWidth, targetHeight);
     }
+  } else {
+    // If face fitting is not requested, center the image
+    image = await centerImage(image, targetWidth, targetHeight);
   }
 
   if (config.adjustContrast) {
@@ -212,19 +189,52 @@ async function adjustFacePosition(image: sharp.Sharp, detection: faceapi.FaceDet
   const left = Math.max(0, Math.round(newFaceCenterX - targetWidth / 2));
   const top = Math.max(0, Math.round(newFaceCenterY - targetHeight * 0.45)); // Position face slightly above center
 
-  // Resize and crop the image
-  return image
-    .resize({
-      width: newWidth,
-      height: newHeight,
-      fit: 'fill'
-    })
-    .extract({
-      left,
-      top,
-      width: targetWidth,
-      height: targetHeight
-    });
+  // Resize the image
+  image = image.resize({
+    width: newWidth,
+    height: newHeight,
+    fit: 'fill'
+  });
+
+  // Crop the image to center the face
+  return image.extract({
+    left,
+    top,
+    width: targetWidth,
+    height: targetHeight
+  });
+}
+
+async function centerImage(image: sharp.Sharp, targetWidth: number, targetHeight: number) {
+  const { width, height } = await image.metadata();
+  if (!width || !height) throw new Error('Image dimensions not available');
+
+  const aspectRatio = width / height;
+  const targetAspectRatio = targetWidth / targetHeight;
+
+  let resizeWidth, resizeHeight;
+  if (aspectRatio > targetAspectRatio) {
+    resizeHeight = targetHeight;
+    resizeWidth = Math.round(targetHeight * aspectRatio);
+  } else {
+    resizeWidth = targetWidth;
+    resizeHeight = Math.round(targetWidth / aspectRatio);
+  }
+
+  // Resize the image
+  image = image.resize(resizeWidth, resizeHeight, { fit: 'fill' });
+
+  // Calculate cropping parameters
+  const left = Math.max(0, Math.round((resizeWidth - targetWidth) / 2));
+  const top = Math.max(0, Math.round((resizeHeight - targetHeight) / 2));
+
+  // Crop the image
+  return image.extract({
+    left,
+    top,
+    width: targetWidth,
+    height: targetHeight
+  });
 }
 
 async function createOnlineSubmissionVersion(buffer: Buffer): Promise<Buffer> {

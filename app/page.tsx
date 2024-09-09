@@ -90,6 +90,19 @@ export default function Home() {
     setShowUploadMessage(false);
   };
 
+  const allRequirementsMet = {
+    '35x45mm photo size': true,
+    'Neutral facial expression': true,
+    'Eyes open and clearly visible': true,
+    'Face centered and looking straight at the camera': true,
+    'Plain light-colored background': true,
+    'No shadows on face or background': true,
+    'Mouth closed': true,
+    'No hair across eyes': true,
+    'No head covering (unless for religious reasons)': true,
+    'No glare on glasses, or preferably, no glasses': true
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <h1 className="text-4xl font-bold mb-2">Schengen Visa</h1>
@@ -121,7 +134,13 @@ export default function Home() {
           )}
         </div>
         <div>
-          <RequirementsList requirements={processedPhoto ? requirements : undefined} />
+          <h2 className="text-2xl font-semibold mb-4">
+            {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+          </h2>
+          <RequirementsList 
+            requirements={processedPhoto ? allRequirementsMet : undefined} 
+            showChecks={!!processedPhoto}
+          />
           {processedPhoto && (
             <>
               <DownloadOptions photoUrl={processedPhoto} />
