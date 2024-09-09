@@ -1,101 +1,251 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { removeBackgroundFromImageBase64 } from "remove.bg";
+import * as faceapi from 'face-api.js';
+import { createCanvas, loadImage } from 'canvas';
 import { ProcessingConfig } from '../../types';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from '../../constants';
+import path from 'path';
+import * as tf from '@tensorflow/tfjs';
 
-// You'll need to set your Remove.bg API key as an environment variable
-const REMOVE_BG_API_KEY = process.env.REMOVE_BG_API_KEY;
+// Add this line
+import { createImageBitmap } from 'canvas';
+
+// Load face-api models
+const loadModels = async () => {
+  try {
+    const modelPath = path.join(process.cwd(), 'public', 'models');
+    await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath);
+    await faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath);
+    await faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath);
+    console.log('Models loaded successfully');
+  } catch (error) {
+    console.error('Error loading models:', error);
+    throw error;
+  }
+};
+
+// Initialize models
+let modelsLoaded = false;
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const photo = formData.get('photo') as File;
-  const config = JSON.parse(formData.get('config') as string) as ProcessingConfig;
-
-  if (!photo) {
-    return NextResponse.json({ error: 'No photo provided' }, { status: 400 });
-  }
-
   try {
+    if (!modelsLoaded) {
+      await loadModels();
+      modelsLoaded = true;
+    }
+
+    const formData = await req.formData();
+    const photo = formData.get('photo') as File;
+    const config = JSON.parse(formData.get('config') as string) as ProcessingConfig;
+
+    if (!photo) {
+      return NextResponse.json({ error: 'No photo provided' }, { status: 400 });
+    }
+
     const buffer = await photo.arrayBuffer();
+    console.log('Original photo size:', buffer.byteLength);
+    
     const processedBuffer = await applyPhotoProcessing(Buffer.from(buffer), config);
+    console.log('Processed photo size:', processedBuffer.length);
+
+    // Log the dimensions of the processed image
+    const processedImage = sharp(processedBuffer);
+    const { width, height } = await processedImage.metadata();
+    console.log('Processed image dimensions:', { width, height });
 
     const base64 = processedBuffer.toString('base64');
     const photoUrl = `data:image/jpeg;base64,${base64}`;
 
-    const requirements = await checkCompliance(photoUrl);
+    // Create online submission version
+    const onlineSubmissionBuffer = await createOnlineSubmissionVersion(processedBuffer);
+    console.log('Online submission photo size:', onlineSubmissionBuffer.length);
+    
+    const onlineSubmissionBase64 = onlineSubmissionBuffer.toString('base64');
+    const onlineSubmissionUrl = `data:image/jpeg;base64,${onlineSubmissionBase64}`;
 
-    return NextResponse.json({ photoUrl, requirements });
+    // For now, we'll return a placeholder for requirements
+    const requirements = {
+      size: true,
+      background: true,
+      headPosition: true,
+      faceExpression: true,
+    };
+
+    return NextResponse.json({ photoUrl, onlineSubmissionUrl, requirements });
   } catch (error) {
     console.error('Photo processing failed:', error);
-    return NextResponse.json({ error: 'Photo processing failed' }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }
 
 async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): Promise<Buffer> {
   let image = sharp(buffer);
 
-  if (config.resize) {
-    image = image.resize({
-      width: SCHENGEN_PHOTO_REQUIREMENTS.width,
-      height: SCHENGEN_PHOTO_REQUIREMENTS.height,
-      fit: 'cover',
-      position: 'top',
-    });
-  }
+  // Get the original image dimensions
+  const { width: originalWidth, height: originalHeight } = await image.metadata();
+  console.log('Original image dimensions:', { width: originalWidth, height: originalHeight });
 
-  if (config.removeBackground) {
-    if (!REMOVE_BG_API_KEY) {
-      console.error('Remove.bg API key is not set');
-      // Fallback to original image if API key is not set
-    } else {
-      try {
-        const base64img = buffer.toString('base64');
-        const result = await removeBackgroundFromImageBase64({
-          base64img,
-          apiKey: REMOVE_BG_API_KEY,
-          size: 'regular',
-          type: 'person',
-        });
-        image = sharp(Buffer.from(result.base64img, 'base64'));
-      } catch (error) {
-        console.error('Background removal failed:', error);
-        // Fallback to the original image if background removal fails
-      }
+  // Calculate the target dimensions based on the Schengen photo requirements
+  const targetWidth = SCHENGEN_PHOTO_REQUIREMENTS.width * 10; // 350 pixels
+  const targetHeight = SCHENGEN_PHOTO_REQUIREMENTS.height * 10; // 450 pixels
+
+  // Calculate scaling factors
+  const scaleX = targetWidth / originalWidth;
+  const scaleY = targetHeight / originalHeight;
+  const scale = Math.min(scaleX, scaleY);
+
+  // Calculate dimensions to maintain aspect ratio
+  const resizeWidth = Math.round(originalWidth * scale);
+  const resizeHeight = Math.round(originalHeight * scale);
+
+  // Resize the image while maintaining aspect ratio
+  image = image.resize(resizeWidth, resizeHeight, { fit: 'contain' });
+
+  // Create a white canvas of the target size
+  const canvas = sharp({
+    create: {
+      width: targetWidth,
+      height: targetHeight,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
     }
-  }
+  });
 
-  if (config.changeBackgroundColor) {
-    image = image.flatten({ background: { r: 255, g: 255, b: 255 } });
-  }
+  // Calculate position to center the image
+  const left = Math.round((targetWidth - resizeWidth) / 2);
+  const top = Math.round((targetHeight - resizeHeight) / 2);
+
+  // Composite the resized image onto the white canvas
+  image = await canvas.composite([{ input: await image.toBuffer(), left, top }]);
 
   if (config.fitFace) {
-    console.log('Face fitting would be applied here');
-    // Implement face detection and cropping logic here
-  }
-
-  if (config.fixHeadTilt) {
-    console.log('Head tilt correction would be applied here');
-    // Implement head tilt correction logic here
+    try {
+      const faceDetectionResult = await detectFace(await image.toBuffer());
+      if (faceDetectionResult) {
+        image = await adjustFacePosition(image, faceDetectionResult.detection, faceDetectionResult.landmarks, targetWidth, targetHeight);
+        console.log('Face detected and adjusted');
+      } else {
+        console.warn('No face detected. Proceeding with centered image.');
+      }
+    } catch (error) {
+      console.error('Face detection failed:', error);
+      // Proceed without face adjustment if detection fails or times out
+    }
   }
 
   if (config.adjustContrast) {
     image = image.modulate({
-      brightness: 1,
-      saturation: 1.1,
+      brightness: 1.05,
+      saturation: 1.05,
       hue: 0
     });
   }
 
-  return image.jpeg().toBuffer();
+  // Sharpen the image slightly to improve clarity
+  image = image.sharpen({ sigma: 0.5, m1: 0.5, m2: 0.5 });
+
+  // Log final image dimensions
+  const finalMetadata = await image.metadata();
+  console.log('Final image dimensions:', { width: finalMetadata.width, height: finalMetadata.height });
+
+  // Use higher quality JPEG compression
+  return image.jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).toBuffer();
 }
 
-async function checkCompliance(photoUrl: string) {
-  // Implement compliance checking logic here
-  return {
-    size: true,
-    background: true,
-    headPosition: true,
-    faceExpression: true,
-  };
+async function detectFace(imageBuffer: Buffer): Promise<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }, faceapi.FaceLandmarks68> | null> {
+  try {
+    // Convert the buffer to a Uint8Array
+    const uint8Array = new Uint8Array(imageBuffer);
+    
+    // Create a Blob from the Uint8Array
+    const blob = new Blob([uint8Array], { type: 'image/jpeg' });
+    
+    // Create an HTMLImageElement
+    const img = await createImageBitmap(blob);
+    
+    // Create a canvas and draw the image
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    // Convert canvas to tensor
+    const tensor = tf.browser.fromPixels(canvas as any);
+    
+    const detections = await faceapi.detectSingleFace(tensor as any).withFaceLandmarks();
+
+    tensor.dispose();
+
+    if (detections) {
+      console.log('Face detected:', detections);
+      return detections;
+    } else {
+      console.warn('No face detected in the image');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error in face detection:', error);
+    return null;
+  }
+}
+
+async function adjustFacePosition(image: sharp.Sharp, detection: faceapi.FaceDetection, landmarks: faceapi.FaceLandmarks68, targetWidth: number, targetHeight: number) {
+  const { width, height } = await image.metadata();
+  if (!width || !height) throw new Error('Image dimensions not available');
+
+  const faceBox = detection.box;
+  const chin = landmarks.positions[8]; // Bottom of the chin
+  const crown = landmarks.positions[24]; // Top of the forehead
+
+  // Calculate current head height in pixels
+  const currentHeadHeight = crown.y - chin.y;
+
+  // Calculate desired head height (34mm is the middle of the allowed range)
+  const desiredHeadHeight = (34 / 45) * targetHeight;
+
+  // Calculate scale factor
+  const scaleFactor = desiredHeadHeight / currentHeadHeight;
+
+  // Calculate new dimensions
+  const newWidth = Math.round(width * scaleFactor);
+  const newHeight = Math.round(height * scaleFactor);
+
+  // Calculate position to center the face
+  const faceCenterX = faceBox.x + faceBox.width / 2;
+  const faceCenterY = faceBox.y + faceBox.height / 2;
+
+  const newFaceCenterX = faceCenterX * scaleFactor;
+  const newFaceCenterY = faceCenterY * scaleFactor;
+
+  const left = Math.max(0, Math.round(newFaceCenterX - targetWidth / 2));
+  const top = Math.max(0, Math.round(newFaceCenterY - targetHeight * 0.45)); // Position face slightly above center
+
+  // Resize and crop the image
+  return image
+    .resize({
+      width: newWidth,
+      height: newHeight,
+      fit: 'fill'
+    })
+    .extract({
+      left,
+      top,
+      width: targetWidth,
+      height: targetHeight
+    });
+}
+
+async function createOnlineSubmissionVersion(buffer: Buffer): Promise<Buffer> {
+  const image = sharp(buffer);
+  
+  // Resize to exactly 35x45mm at 300 DPI
+  const width = Math.round(SCHENGEN_PHOTO_REQUIREMENTS.width * 300 / 25.4);
+  const height = Math.round(SCHENGEN_PHOTO_REQUIREMENTS.height * 300 / 25.4);
+
+  return image
+    .resize(width, height, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+    .jpeg({ quality: 100, chromaSubsampling: '4:4:4' })
+    .toBuffer();
 }

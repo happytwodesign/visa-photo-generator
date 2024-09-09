@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { X } from 'lucide-react'; // Make sure to install lucide-react
 
 interface PhotoUploadProps {
   onUpload: (file: File) => void;
@@ -35,7 +34,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
             onClick={(e) => { e.stopPropagation(); onDelete(); }} 
             className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md"
           >
-            <X size={20} />
+            X
           </button>
         </div>
       ) : (

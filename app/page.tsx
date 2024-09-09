@@ -7,6 +7,8 @@ import PhotoPreview from './components/PhotoPreview';
 import DownloadOptions from './components/DownloadOptions';
 import RequirementsList from './components/RequirementsList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
+import { Download } from 'lucide-react'; // Add this import
+import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -16,6 +18,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUploadMessage, setShowUploadMessage] = useState(false);
+  const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
 
   const handlePhotoUpload = (file: File) => {
     setUploadedPhoto(file);
@@ -23,6 +26,25 @@ export default function Home() {
     setError(null);
     setProcessedPhoto(null);
     setShowUploadMessage(false);
+  };
+
+  const checkImageDimensions = (url: string) => {
+    const img = new Image();
+    img.onload = () => {
+      console.log('Image dimensions:', { width: img.width, height: img.height });
+      const aspectRatio = img.width / img.height;
+      const expectedAspectRatio = SCHENGEN_PHOTO_REQUIREMENTS.width / SCHENGEN_PHOTO_REQUIREMENTS.height;
+      console.log('Aspect ratio:', aspectRatio.toFixed(6));
+      console.log('Expected aspect ratio:', expectedAspectRatio.toFixed(6));
+      const isAspectRatioCorrect = Math.abs(aspectRatio - expectedAspectRatio) < 0.0001;
+      console.log('Is aspect ratio correct?', isAspectRatioCorrect);
+      console.log('Difference in aspect ratio:', Math.abs(aspectRatio - expectedAspectRatio).toFixed(6));
+      
+      if (!isAspectRatioCorrect) {
+        console.error('Aspect ratio is incorrect. Please check the image processing on the server.');
+      }
+    };
+    img.src = url;
   };
 
   const handleGenerate = async () => {
@@ -34,9 +56,16 @@ export default function Home() {
     setIsProcessing(true);
     try {
       const response = await processPhoto(uploadedPhoto, defaultConfig);
+      console.log('Full API response:', response);
+      console.log('Processed photo URL:', response.photoUrl);
+      console.log('Online submission URL:', response.onlineSubmissionUrl);
       setProcessedPhoto(response.photoUrl);
+      setOnlineSubmissionUrl(response.onlineSubmissionUrl);
       setRequirements(response.requirements);
       setError(null);
+
+      // Check dimensions of the processed photo
+      checkImageDimensions(response.photoUrl);
     } catch (error) {
       console.error('Error processing photo:', error);
       setError('Failed to process photo. Please try again.');
@@ -49,6 +78,7 @@ export default function Home() {
     setUploadedPhoto(null);
     setUploadedPhotoUrl(null);
     setProcessedPhoto(null);
+    setOnlineSubmissionUrl(null);
     setRequirements({});
     setError(null);
     setShowUploadMessage(false);
@@ -84,7 +114,10 @@ export default function Home() {
               {error && <p className="text-destructive mt-2 text-center">{error}</p>}
             </>
           ) : (
-            <PhotoPreview photoUrl={processedPhoto} onRetake={handleRetake} />
+            <PhotoPreview 
+              photoUrl={processedPhoto} 
+              onRetake={handleRetake} 
+            />
           )}
         </div>
         <div>
@@ -92,8 +125,23 @@ export default function Home() {
           {processedPhoto && (
             <>
               <DownloadOptions photoUrl={processedPhoto} />
-              <div className="mt-4 flex justify-end">
-                <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md">Download</button>
+              <div className="mt-4">
+                <button 
+                  onClick={() => {
+                    if (onlineSubmissionUrl) {
+                      const link = document.createElement('a');
+                      link.href = onlineSubmissionUrl;
+                      link.download = 'schengen_visa_photo.jpg';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }
+                  }} 
+                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center justify-center"
+                >
+                  <Download size={16} className="mr-2" />
+                  Download for Online Submission
+                </button>
               </div>
             </>
           )}

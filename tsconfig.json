@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es6",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -22,7 +22,9 @@
     "paths": {
       "@/*": ["./app/*"]
     },
-    "baseUrl": "."
+    "baseUrl": ".",
+    "types": ["node", "react", "react-dom", "clsx", "tailwind-merge"],
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

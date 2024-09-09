@@ -7,13 +7,15 @@ interface PhotoPreviewProps {
 
 const PhotoPreview: React.FC<PhotoPreviewProps> = ({ photoUrl, onRetake }) => {
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
       <div className="flex-grow bg-white rounded-[10px] overflow-hidden" style={{ aspectRatio: '35/45' }}>
-        <img src={photoUrl} alt="Processed photo" className="w-full h-full object-cover" />
+        <img src={photoUrl} alt="Processed photo" className="w-full h-full object-contain" />
       </div>
-      <button onClick={onRetake} className="mt-4 w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
-        Retake
-      </button>
+      <div className="mt-4">
+        <button onClick={onRetake} className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
+          Retake
+        </button>
+      </div>
     </div>
   );
 };
