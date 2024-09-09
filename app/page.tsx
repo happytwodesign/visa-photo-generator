@@ -125,7 +125,7 @@ export default function Home() {
           {processedPhoto && (
             <>
               <DownloadOptions photoUrl={processedPhoto} />
-              <div className="mt-4">
+              <div className="mt-4 flex justify-end">
                 <button 
                   onClick={() => {
                     if (onlineSubmissionUrl) {
@@ -137,10 +137,10 @@ export default function Home() {
                       document.body.removeChild(link);
                     }
                   }} 
-                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center justify-center"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center"
                 >
                   <Download size={16} className="mr-2" />
-                  Download for Online Submission
+                  Download
                 </button>
               </div>
             </>

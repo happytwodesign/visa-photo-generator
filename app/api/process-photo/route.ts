@@ -7,9 +7,6 @@ import { SCHENGEN_PHOTO_REQUIREMENTS } from '../../constants';
 import path from 'path';
 import * as tf from '@tensorflow/tfjs';
 
-// Add this line
-import { createImageBitmap } from 'canvas';
-
 // Load face-api models
 const loadModels = async () => {
   try {
@@ -85,7 +82,9 @@ async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): P
   let image = sharp(buffer);
 
   // Get the original image dimensions
-  const { width: originalWidth, height: originalHeight } = await image.metadata();
+  const metadata = await image.metadata();
+  const originalWidth = metadata.width || 0;
+  const originalHeight = metadata.height || 0;
   console.log('Original image dimensions:', { width: originalWidth, height: originalHeight });
 
   // Calculate the target dimensions based on the Schengen photo requirements
@@ -157,19 +156,10 @@ async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): P
 
 async function detectFace(imageBuffer: Buffer): Promise<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }, faceapi.FaceLandmarks68> | null> {
   try {
-    // Convert the buffer to a Uint8Array
-    const uint8Array = new Uint8Array(imageBuffer);
-    
-    // Create a Blob from the Uint8Array
-    const blob = new Blob([uint8Array], { type: 'image/jpeg' });
-    
-    // Create an HTMLImageElement
-    const img = await createImageBitmap(blob);
-    
-    // Create a canvas and draw the image
-    const canvas = createCanvas(img.width, img.height);
+    const image = await loadImage(imageBuffer);
+    const canvas = createCanvas(image.width, image.height);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(image, 0, 0);
 
     // Convert canvas to tensor
     const tensor = tf.browser.fromPixels(canvas as any);
