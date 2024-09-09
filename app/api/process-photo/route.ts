@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { removeBackgroundFromImageBase64 } from "remove.bg";
 import { ProcessingConfig } from '../../types';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from '../../constants';
+
+// You'll need to set your Remove.bg API key as an environment variable
+const REMOVE_BG_API_KEY = process.env.REMOVE_BG_API_KEY;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -40,35 +44,42 @@ async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): P
     });
   }
 
-  // Remove the background removal step for now
-  // if (config.removeBackground) {
-  //   image = image.removeAlpha().threshold(240);
-  // }
+  if (config.removeBackground) {
+    if (!REMOVE_BG_API_KEY) {
+      console.error('Remove.bg API key is not set');
+      // Fallback to original image if API key is not set
+    } else {
+      try {
+        const base64img = buffer.toString('base64');
+        const result = await removeBackgroundFromImageBase64({
+          base64img,
+          apiKey: REMOVE_BG_API_KEY,
+          size: 'regular',
+          type: 'person',
+        });
+        image = sharp(Buffer.from(result.base64img, 'base64'));
+      } catch (error) {
+        console.error('Background removal failed:', error);
+        // Fallback to the original image if background removal fails
+      }
+    }
+  }
 
   if (config.changeBackgroundColor) {
-    // Instead of flattening, let's just add a white background
-    image = image.composite([{
-      input: Buffer.from([255, 255, 255, 255]), // White background
-      raw: {
-        width: 1,
-        height: 1,
-        channels: 4
-      },
-      tile: true,
-      blend: 'dest-over'
-    }]);
+    image = image.flatten({ background: { r: 255, g: 255, b: 255 } });
   }
 
   if (config.fitFace) {
     console.log('Face fitting would be applied here');
+    // Implement face detection and cropping logic here
   }
 
   if (config.fixHeadTilt) {
     console.log('Head tilt correction would be applied here');
+    // Implement head tilt correction logic here
   }
 
   if (config.adjustContrast) {
-    // Adjust contrast slightly
     image = image.modulate({
       brightness: 1,
       saturation: 1.1,
