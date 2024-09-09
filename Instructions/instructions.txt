@@ -1,0 +1,15 @@
+Web service for Schengen visa photo generation based on schengen requirements
+User flow:
+User uploads photo.
+User clicks Generate.
+Backend operations:
+Resize photo to 35mm x 45mm.
+Remove background from photo.
+Change background to light gray.
+Fit the face to meet the head height requirement.
+Fix head tilt.
+Adjust image contrast.
+Review the image meets photo requirements and highlight the ones that are not met and the ones that are met.
+Download options:
+User downloads a single photo for internet submission.
+User downloads a single photo and templates with resulted photo for printing in different paper formats (A4, A5, A6).
