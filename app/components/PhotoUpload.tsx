@@ -15,30 +15,37 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
     }
   }, [onUpload]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: {'image/*': []} });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    onDrop, 
+    accept: {'image/*': []},
+    noClick: false, // Ensure click is enabled
+    noKeyboard: false // Allow keyboard navigation
+  });
 
   return (
     <div 
       {...getRootProps()} 
-      className="bg-white rounded-[10px] text-center cursor-pointer flex flex-col justify-center items-center relative"
-      style={{ aspectRatio: '35/45' }}
+      className="relative w-full h-full cursor-pointer"
     >
       <input {...getInputProps()} />
       {uploadedPhotoUrl ? (
-        <div className="w-full h-full relative">
+        <>
           <img 
             src={uploadedPhotoUrl} 
             alt="Uploaded photo" 
             className="w-full h-full object-cover"
           />
           <button
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering dropzone click
+              onDelete();
+            }}
             className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Remove photo"
           >
             <X size={24} className="text-gray-600" />
           </button>
-        </div>
+        </>
       ) : (
         <div className="bg-gray-100 w-full h-full rounded-[10px] flex flex-col items-center justify-center">
           <p className="text-lg mb-2">

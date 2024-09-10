@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import PhotoUpload from './components/PhotoUpload';
 import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
 import DownloadOptions from './components/DownloadOptions';
 import RequirementsList from './components/RequirementsList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
-import { Download } from 'lucide-react'; // Add this import
+import { Download } from 'lucide-react';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
+import { Switch } from "./components/ui/switch";
+import { Label } from "./components/ui/label";
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -19,6 +22,7 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUploadMessage, setShowUploadMessage] = useState(false);
   const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
+  const [removeBackground, setRemoveBackground] = useState(true);
 
   const handlePhotoUpload = (file: File) => {
     setUploadedPhoto(file);
@@ -29,7 +33,7 @@ export default function Home() {
   };
 
   const checkImageDimensions = (url: string) => {
-    const img = new Image();
+    const img = new Image() as HTMLImageElement;
     img.onload = () => {
       console.log('Image dimensions:', { width: img.width, height: img.height });
       const aspectRatio = img.width / img.height;
@@ -55,7 +59,7 @@ export default function Home() {
 
     setIsProcessing(true);
     try {
-      const response = await processPhoto(uploadedPhoto, defaultConfig);
+      const response = await processPhoto(uploadedPhoto, { ...defaultConfig, removeBackground });
       console.log('Full API response:', response);
       console.log('Processed photo URL:', response.photoUrl);
       console.log('Online submission URL:', response.onlineSubmissionUrl);
@@ -104,7 +108,7 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto text-[#0F172A]">
       <h1 className="text-4xl font-bold mb-2">Schengen Visa</h1>
       <p className="text-lg mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
       
@@ -124,45 +128,48 @@ export default function Home() {
                 isProcessing={isProcessing} 
                 showMessage={showUploadMessage}
               />
-              {error && <p className="text-destructive mt-2 text-center">{error}</p>}
+              <div className="flex items-center space-x-2 mt-4">
+                <Switch
+                  id="remove-background"
+                  checked={removeBackground}
+                  onCheckedChange={setRemoveBackground}
+                />
+                <Label htmlFor="remove-background">Remove Background</Label>
+              </div>
+              {error && <p className="text-gray-500 mt-2 text-center">{error}</p>}
             </>
           ) : (
             <PhotoPreview 
               photoUrl={processedPhoto} 
-              onRetake={handleRetake} 
+              onRetake={handleRetake}
             />
           )}
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">
+        <div className="flex flex-col h-full">
+          {!processedPhoto && (
+            <div className="mb-6">
+              <Image
+                src="/images/howitworks.png"
+                alt="How it works"
+                width={500}
+                height={300}
+                layout="responsive"
+                className="rounded-lg"
+              />
+            </div>
+          )}
+          <div className="font-bold mb-2">
             {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
-          </h2>
+          </div>
           <RequirementsList 
             requirements={processedPhoto ? allRequirementsMet : undefined} 
             showChecks={!!processedPhoto}
           />
           {processedPhoto && (
-            <>
-              <DownloadOptions photoUrl={processedPhoto} />
-              <div className="mt-4 flex justify-end">
-                <button 
-                  onClick={() => {
-                    if (onlineSubmissionUrl) {
-                      const link = document.createElement('a');
-                      link.href = onlineSubmissionUrl;
-                      link.download = 'schengen_visa_photo.jpg';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }
-                  }} 
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center"
-                >
-                  <Download size={16} className="mr-2" />
-                  Download
-                </button>
-              </div>
-            </>
+            <DownloadOptions 
+              photoUrl={processedPhoto} 
+              onlineSubmissionUrl={onlineSubmissionUrl || ''}
+            />
           )}
         </div>
       </div>

@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     const photo = formData.get('photo') as File;
     const config = JSON.parse(formData.get('config') as string) as ProcessingConfig;
 
+    console.log('Received photo for processing. Size:', photo.size);
+    console.log('Processing config:', config);
+
     if (!photo) {
       return NextResponse.json({ error: 'No photo provided' }, { status: 400 });
     }
@@ -99,18 +102,18 @@ async function applyPhotoProcessing(buffer: Buffer, config: ProcessingConfig): P
         console.log('Face detected and adjusted');
       } else {
         console.warn('No face detected. Proceeding with centered image.');
-        // If no face is detected, center the image
         image = await centerImage(image, targetWidth, targetHeight);
       }
     } catch (error) {
       console.error('Face detection failed:', error);
-      // If face detection fails, center the image
       image = await centerImage(image, targetWidth, targetHeight);
     }
   } else {
-    // If face fitting is not requested, center the image
     image = await centerImage(image, targetWidth, targetHeight);
   }
+
+  // Ensure light grey background
+  image = image.flatten({ background: { r: 240, g: 240, b: 240 } });
 
   if (config.adjustContrast) {
     image = image.modulate({
@@ -167,7 +170,7 @@ async function adjustFacePosition(image: sharp.Sharp, detection: faceapi.FaceDet
   const crown = landmarks.positions[24]; // Top of the forehead
 
   // Calculate current head height in pixels
-  const currentHeadHeight = crown.y - chin.y;
+  const currentHeadHeight = chin.y - crown.y;
 
   // Calculate desired head height (34mm is the middle of the allowed range)
   const desiredHeadHeight = (34 / 45) * targetHeight;
