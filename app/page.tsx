@@ -12,6 +12,8 @@ import { Download } from 'lucide-react';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
 import { Switch } from "./components/ui/switch";
 import { Label } from "./components/ui/label";
+import { ProcessingConfig as ProcessingConfigType } from './types';
+import { ProcessingConfig as ProcessingConfigComponent } from './components/ProcessingConfig';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -23,6 +25,14 @@ export default function Home() {
   const [showUploadMessage, setShowUploadMessage] = useState(false);
   const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
   const [removeBackground, setRemoveBackground] = useState(true);
+  const [config, setConfig] = useState<ProcessingConfigType>({
+    resize: true,
+    removeBackground: true,
+    changeBgToLightGray: true,
+    fitHead: true,
+    fixHeadTilt: true,
+    adjustContrast: true,
+  });
 
   const handlePhotoUpload = (file: File) => {
     setUploadedPhoto(file);
@@ -33,7 +43,7 @@ export default function Home() {
   };
 
   const checkImageDimensions = (url: string) => {
-    const img = new Image() as HTMLImageElement;
+    const img = document.createElement('img');
     img.onload = () => {
       console.log('Image dimensions:', { width: img.width, height: img.height });
       const aspectRatio = img.width / img.height;
@@ -59,7 +69,13 @@ export default function Home() {
 
     setIsProcessing(true);
     try {
-      const response = await processPhoto(uploadedPhoto, { ...defaultConfig, removeBackground });
+      const processingConfig = {
+        ...config,
+        removeBackground,
+        photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
+      };
+      console.log('Processing config:', processingConfig);
+      const response = await processPhoto(uploadedPhoto, processingConfig);
       console.log('Full API response:', response);
       console.log('Processed photo URL:', response.photoUrl);
       console.log('Online submission URL:', response.onlineSubmissionUrl);
@@ -72,7 +88,7 @@ export default function Home() {
       checkImageDimensions(response.photoUrl);
     } catch (error) {
       console.error('Error processing photo:', error);
-      setError('Failed to process photo. Please try again.');
+      setError(`Failed to process photo. Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -128,14 +144,10 @@ export default function Home() {
                 isProcessing={isProcessing} 
                 showMessage={showUploadMessage}
               />
-              <div className="flex items-center space-x-2 mt-4">
-                <Switch
-                  id="remove-background"
-                  checked={removeBackground}
-                  onCheckedChange={setRemoveBackground}
-                />
-                <Label htmlFor="remove-background">Remove Background</Label>
-              </div>
+              <ProcessingConfigComponent
+                removeBackground={removeBackground}
+                onRemoveBackgroundChange={setRemoveBackground}
+              />
               {error && <p className="text-gray-500 mt-2 text-center">{error}</p>}
             </>
           ) : (
