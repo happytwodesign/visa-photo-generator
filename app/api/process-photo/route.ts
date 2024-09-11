@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     image = image.resize(350, 450, { fit: 'cover' });
 
     // Convert image to buffer
-    const photoBuffer = await image.toBuffer();
+    let photoBuffer = await image.toBuffer();
 
     // Step 2: Remove background using PhotoRoom API
     if (config.removeBackground) {
@@ -41,6 +41,9 @@ export async function POST(request: Request) {
         });
 
         image = sharp(photoRoomResponse.data);
+        // Resize again to ensure 350x450 after background removal
+        image = image.resize(350, 450, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } });
+        photoBuffer = await image.toBuffer();
       } catch (photoRoomError: unknown) {
         if (axios.isAxiosError(photoRoomError) && photoRoomError.response) {
           console.error('PhotoRoom API Error:', photoRoomError.response.data);
@@ -51,14 +54,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 3: Crop the image to fit the head according to visa requirements
-    // This step requires face detection, which is not implemented here.
-    // For now, we'll just center the image
-    image = image.extract({ left: 0, top: 50, width: 350, height: 350 });
+    // Step 3: We're no longer cropping the image, as we want to maintain the 350x450 ratio
 
     // Convert the processed image to a base64 string
-    const processedImageBuffer = await image.toBuffer();
-    const base64Image = processedImageBuffer.toString('base64');
+    const base64Image = photoBuffer.toString('base64');
 
     return NextResponse.json({ 
       photoUrl: `data:image/png;base64,${base64Image}`,

@@ -1,19 +1,17 @@
 "use client";
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import PhotoUpload from './components/PhotoUpload';
 import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
 import DownloadOptions from './components/DownloadOptions';
 import RequirementsList from './components/RequirementsList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
-import { Download } from 'lucide-react';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
-import { Switch } from "./components/ui/switch";
-import { Label } from "./components/ui/label";
 import { ProcessingConfig as ProcessingConfigType } from './types';
-import { ProcessingConfig as ProcessingConfigComponent } from './components/ProcessingConfig';
+import { Button } from './components/ui/button';
+import { generateTemplates } from './lib/templateGenerator'; // Update this import
+import { ArrowLeft, Check } from 'lucide-react'; // Add this import
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -24,7 +22,6 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUploadMessage, setShowUploadMessage] = useState(false);
   const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
-  const [removeBackground, setRemoveBackground] = useState(true);
   const [config, setConfig] = useState<ProcessingConfigType>({
     resize: true,
     removeBackground: true,
@@ -33,6 +30,8 @@ export default function Home() {
     fixHeadTilt: true,
     adjustContrast: true,
   });
+  const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const handlePhotoUpload = (file: File) => {
     setUploadedPhoto(file);
@@ -71,7 +70,7 @@ export default function Home() {
     try {
       const processingConfig = {
         ...config,
-        removeBackground,
+        removeBackground: true, // Always set to true
         photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
       };
       console.log('Processing config:', processingConfig);
@@ -101,7 +100,6 @@ export default function Home() {
     setOnlineSubmissionUrl(null);
     setRequirements({});
     setError(null);
-    setShowUploadMessage(false);
   };
 
   const handleDeletePhoto = () => {
@@ -123,68 +121,125 @@ export default function Home() {
     'No glare on glasses, or preferably, no glasses': true
   };
 
+  const handleDownload = async () => {
+    if (selectedSizes.size === 0) {
+      setDownloadError('Please select at least one option to download.');
+      return;
+    }
+
+    setDownloadError(null);
+
+    if (selectedSizes.has('online') && processedPhoto) {
+      const link = document.createElement('a');
+      link.href = processedPhoto;
+      link.download = 'schengen_visa_photo_online.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    const paperSizes = ['A4', 'A5', 'A6'];
+    const selectedPaperSizes = paperSizes.filter(size => selectedSizes.has(size as 'A4' | 'A5' | 'A6'));
+
+    if (selectedPaperSizes.length > 0 && processedPhoto) {
+      try {
+        const templates = await generateTemplates(processedPhoto);
+        selectedPaperSizes.forEach((size, index) => {
+          const blob = templates[paperSizes.indexOf(size)];
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `schengen_visa_photo_${size.toLowerCase()}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        });
+      } catch (error) {
+        console.error('Error generating templates:', error);
+        setError('Failed to generate templates for download.');
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto text-[#0F172A]">
       <h1 className="text-4xl font-bold mb-2">Schengen Visa</h1>
       <p className="text-lg mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="flex flex-col">
+        <div className="flex flex-col h-full">
           {!processedPhoto ? (
             <>
-              <div className="bg-white rounded-[10px] overflow-hidden" style={{ aspectRatio: '35/45' }}>
+              <div className="flex-grow bg-white rounded-[10px] overflow-hidden relative" style={{ aspectRatio: '35/45' }}>
                 <PhotoUpload 
                   onUpload={handlePhotoUpload} 
                   uploadedPhotoUrl={uploadedPhotoUrl} 
                   onDelete={handleDeletePhoto}
                 />
               </div>
-              <GenerateButton 
-                onClick={handleGenerate} 
-                isProcessing={isProcessing} 
-                showMessage={showUploadMessage}
-              />
-              <ProcessingConfigComponent
-                removeBackground={removeBackground}
-                onRemoveBackgroundChange={setRemoveBackground}
-              />
-              {error && <p className="text-gray-500 mt-2 text-center">{error}</p>}
+              <div className="mt-4">
+                <GenerateButton 
+                  onClick={handleGenerate} 
+                  isProcessing={isProcessing} 
+                  showMessage={showUploadMessage}
+                />
+              </div>
             </>
           ) : (
-            <PhotoPreview 
-              photoUrl={processedPhoto} 
-              onRetake={handleRetake}
-            />
+            <>
+              <div className="flex-grow">
+                <PhotoPreview photoUrl={processedPhoto} />
+              </div>
+              <div className="mt-4">
+                <Button 
+                  onClick={handleRetake} 
+                  variant="link"
+                  className="px-0 text-primary flex items-center"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Retake
+                </Button>
+              </div>
+            </>
           )}
+          {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
         </div>
         <div className="flex flex-col h-full">
-          {!processedPhoto && (
-            <div className="mb-6">
-              <Image
-                src="/images/howitworks.png"
-                alt="How it works"
-                width={500}
-                height={300}
-                layout="responsive"
-                className="rounded-lg"
-              />
-            </div>
-          )}
-          <div className="font-bold mb-2">
-            {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
-          </div>
-          <RequirementsList 
-            requirements={processedPhoto ? allRequirementsMet : undefined} 
-            showChecks={!!processedPhoto}
-          />
-          {processedPhoto && (
-            <DownloadOptions 
-              photoUrl={processedPhoto} 
-              onlineSubmissionUrl={onlineSubmissionUrl || ''}
+          <div className="flex-grow overflow-auto" style={{ maxHeight: 'calc(100% - 3rem)' }}>
+            <h3 className="text-2xl font-semibold mb-4">
+              {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+            </h3>
+            <RequirementsList 
+              requirements={processedPhoto ? allRequirementsMet : undefined} 
+              showChecks={!!processedPhoto}
             />
+            {processedPhoto && (
+              <div className="mt-4">
+                <DownloadOptions 
+                  photoUrl={processedPhoto} 
+                  onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                  onSelectionChange={setSelectedSizes}
+                />
+              </div>
+            )}
+          </div>
+          {processedPhoto && (
+            <div className="mt-4">
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleDownload} 
+                  className="w-auto px-6"
+                >
+                  Download Selected
+                </Button>
+              </div>
+              {downloadError && <p className="text-gray-500 mt-2 text-center">{downloadError}</p>}
+            </div>
           )}
         </div>
       </div>
+      {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
     </div>
   );
 }

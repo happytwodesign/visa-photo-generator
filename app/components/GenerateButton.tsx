@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from './ui/button';
 
 interface GenerateButtonProps {
   onClick: () => void;
@@ -9,21 +9,15 @@ interface GenerateButtonProps {
 
 const GenerateButton: React.FC<GenerateButtonProps> = ({ onClick, isProcessing, showMessage }) => {
   return (
-    <div className="mt-4">
+    <div>
       <Button
         onClick={onClick}
         disabled={isProcessing}
-        className="w-full"
+        className="w-full h-10 text-sm font-medium bg-primary text-primary-foreground"
       >
         {isProcessing ? 'Processing...' : 'Generate'}
       </Button>
-      <div className="h-6 mt-2">
-        {showMessage && (
-          <p className="text-sm text-muted-foreground text-center">
-            Upload a photo to continue
-          </p>
-        )}
-      </div>
+      {showMessage && <p className="text-gray-500 mt-2 text-center">Please upload a photo first.</p>}
     </div>
   );
 };

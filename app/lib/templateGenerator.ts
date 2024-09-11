@@ -1,44 +1,45 @@
 import { jsPDF } from 'jspdf';
 
-const PHOTO_WIDTH_MM = 35;
-const PHOTO_HEIGHT_MM = 45;
+export async function generateTemplates(photoUrl: string): Promise<Blob[]> {
+  const templates: Blob[] = [];
 
-function createTemplate(format: 'a4' | 'a5' | 'a6', imageDataUrl: string): Promise<Blob> {
-  return new Promise((resolve) => {
+  // Function to create a template for a specific paper size
+  const createTemplate = (width: number, height: number, photoWidth: number, photoHeight: number) => {
     const doc = new jsPDF({
-      orientation: 'portrait',
+      orientation: width > height ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: format
+      format: [width, height]
     });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    // Calculate the number of photos that can fit on the page
+    const cols = Math.floor(width / photoWidth);
+    const rows = Math.floor(height / photoHeight);
 
-    const cols = Math.floor(pageWidth / PHOTO_WIDTH_MM);
-    const rows = Math.floor(pageHeight / PHOTO_HEIGHT_MM);
+    // Calculate margins to center the grid
+    const marginX = (width - (cols * photoWidth)) / 2;
+    const marginY = (height - (rows * photoHeight)) / 2;
 
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         doc.addImage(
-          imageDataUrl,
-          'JPEG',
-          j * PHOTO_WIDTH_MM,
-          i * PHOTO_HEIGHT_MM,
-          PHOTO_WIDTH_MM,
-          PHOTO_HEIGHT_MM
+          photoUrl, 
+          'JPEG', 
+          marginX + j * photoWidth, 
+          marginY + i * photoHeight, 
+          photoWidth, 
+          photoHeight
         );
       }
     }
 
-    doc.save(`schengen_visa_photo_${format}.pdf`);
-    resolve(doc.output('blob'));
-  });
-}
+    return doc.output('blob');
+  };
 
-export async function generateTemplates(imageDataUrl: string): Promise<Blob[]> {
-  const a4Template = await createTemplate('a4', imageDataUrl);
-  const a5Template = await createTemplate('a5', imageDataUrl);
-  const a6Template = await createTemplate('a6', imageDataUrl);
+  // Generate templates for A4, A5, and A6
+  // Using 35x45mm as the photo size
+  templates.push(await createTemplate(210, 297, 35, 45)); // A4
+  templates.push(await createTemplate(148, 210, 35, 45)); // A5
+  templates.push(await createTemplate(105, 148, 35, 45)); // A6
 
-  return [a4Template, a5Template, a6Template];
+  return templates;
 }
