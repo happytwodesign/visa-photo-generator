@@ -1,43 +1,41 @@
-import React from 'react';
 import { Check } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface RequirementsListProps {
   requirements?: Record<string, boolean>;
   showChecks?: boolean;
 }
 
-const RequirementsList: React.FC<RequirementsListProps> = ({ requirements, showChecks = false }) => {
-  const requirementItems = [
-    '35x45mm photo size',
-    'Neutral facial expression',
-    'Eyes open and clearly visible',
-    'Face centered and looking straight at the camera',
-    'Plain light-colored background',
-    'No shadows on face or background',
-    'Mouth closed',
-    'No hair across eyes',
-    'No head covering (unless for religious reasons)',
-    'No glare on glasses, or preferably, no glasses'
-  ];
+export default function RequirementsList({ requirements, showChecks = false }: RequirementsListProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
+  const defaultRequirements = {
+    '35x45mm photo size': true,
+    'Neutral facial expression': true,
+    'Eyes open and clearly visible': true,
+    'Face centered and looking straight at the camera': true,
+    'Plain light-colored background': true,
+    'No shadows on face or background': true,
+    'Mouth closed': true,
+    'No hair across eyes': true,
+    'No head covering (unless for religious reasons)': true,
+    'No glare on glasses, or preferably, no glasses': true
+  };
+
+  const requirementsToShow = requirements || defaultRequirements;
 
   return (
-    <div className="mt-4">
-      <ul className="space-y-2">
-        {requirementItems.map((item, index) => (
-          <li key={index} className="flex items-center text-gray-700">
-            {showChecks ? (
-              requirements && requirements[item] && (
-                <Check className="mr-2 h-4 w-4 text-green-500 flex-shrink-0" />
-              )
-            ) : (
-              <span className="mr-2 flex-shrink-0">•</span>
-            )}
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className="space-y-2">
+      {Object.entries(requirementsToShow).map(([requirement, met]) => (
+        <li key={requirement} className={`flex items-start ${isMobile ? 'text-sm' : 'text-base'}`}>
+          {showChecks && (
+            <span className={`mr-2 mt-1 ${met ? 'text-green-500' : 'text-red-500'}`}>
+              {met ? <Check size={16} /> : '✗'}
+            </span>
+          )}
+          <span>{requirement}</span>
+        </li>
+      ))}
+    </ul>
   );
-};
-
-export default RequirementsList;
+}
