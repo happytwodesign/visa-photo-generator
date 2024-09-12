@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PhotoUpload from './components/PhotoUpload';
 import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
@@ -10,8 +10,10 @@ import { processPhoto, defaultConfig } from './lib/photoProcessing';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
 import { ProcessingConfig as ProcessingConfigType } from './types';
 import { Button } from './components/ui/button';
-import { generateTemplates } from './lib/templateGenerator'; // Update this import
-import { ArrowLeft, Check } from 'lucide-react'; // Add this import
+import { Switch } from './components/ui/switch';
+import { Label } from './components/ui/label';
+import { generateTemplates } from './lib/templateGenerator';
+import { ArrowLeft, Check } from 'lucide-react';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -32,6 +34,19 @@ export default function Home() {
   });
   const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [removeBg, setRemoveBg] = useState(false);
+
+  useEffect(() => {
+    const storedRemoveBg = localStorage.getItem('removeBg');
+    if (storedRemoveBg !== null) {
+      setRemoveBg(JSON.parse(storedRemoveBg));
+    }
+  }, []);
+
+  const handleRemoveBgChange = (checked: boolean) => {
+    setRemoveBg(checked);
+    localStorage.setItem('removeBg', JSON.stringify(checked));
+  };
 
   const handlePhotoUpload = (file: File) => {
     setUploadedPhoto(file);
@@ -70,7 +85,7 @@ export default function Home() {
     try {
       const processingConfig = {
         ...config,
-        removeBackground: true, // Always set to true
+        removeBackground: removeBg,
         photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
       };
       console.log('Processing config:', processingConfig);
@@ -214,6 +229,18 @@ export default function Home() {
               requirements={processedPhoto ? allRequirementsMet : undefined} 
               showChecks={!!processedPhoto}
             />
+            
+            {!processedPhoto && (
+              <div className="flex items-center space-x-2 mt-4 mb-4">
+                <Switch
+                  id="remove-bg"
+                  checked={removeBg}
+                  onCheckedChange={handleRemoveBgChange}
+                />
+                <Label htmlFor="remove-bg">Remove Background</Label>
+              </div>
+            )}
+
             {processedPhoto && (
               <div className="mt-4">
                 <DownloadOptions 
