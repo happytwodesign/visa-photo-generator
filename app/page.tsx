@@ -14,7 +14,7 @@ import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/useMediaQuery'; // You'll need to create this hook
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -181,7 +181,7 @@ export default function Home() {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
-    <div className="max-w-5xl mx-auto text-[#0F172A]">
+    <div className="max-w-5xl mx-auto text-[#0F172A] relative min-h-screen pb-20 md:pb-0">
       <h1 className="text-4xl font-bold mb-2">Schengen Visa</h1>
       <p className="text-lg mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
       
@@ -196,28 +196,11 @@ export default function Home() {
                   onDelete={handleDeletePhoto}
                 />
               </div>
-              <div className="mt-4">
-                <GenerateButton 
-                  onClick={handleGenerate} 
-                  isProcessing={isProcessing} 
-                  showMessage={showUploadMessage}
-                />
-              </div>
             </>
           ) : (
             <>
               <div className="flex-grow md:w-full w-[70%] mx-auto">
                 <PhotoPreview photoUrl={processedPhoto} />
-              </div>
-              <div className="mt-4">
-                <Button 
-                  onClick={handleRetake} 
-                  variant="link"
-                  className="px-0 text-primary flex items-center"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Retake
-                </Button>
               </div>
             </>
           )}
@@ -233,7 +216,7 @@ export default function Home() {
               showChecks={!!processedPhoto}
             />
             
-            {!processedPhoto && (
+            {!processedPhoto && !isMobile && (
               <div className="flex items-center space-x-2 mt-4 mb-4">
                 <Switch
                   id="remove-bg"
@@ -254,7 +237,7 @@ export default function Home() {
               </div>
             )}
           </div>
-          {processedPhoto && (
+          {processedPhoto && !isMobile && (
             <div className="mt-4">
               <div className="flex justify-end">
                 <Button 
@@ -270,6 +253,45 @@ export default function Home() {
         </div>
       </div>
       {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
+      
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
+          {!processedPhoto ? (
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="remove-bg-mobile"
+                  checked={removeBg}
+                  onCheckedChange={handleRemoveBgChange}
+                />
+                <Label htmlFor="remove-bg-mobile">Remove Background</Label>
+              </div>
+              <GenerateButton 
+                onClick={handleGenerate} 
+                isProcessing={isProcessing} 
+                showMessage={showUploadMessage}
+              />
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <Button 
+                onClick={handleRetake} 
+                variant="outline"
+                className="flex items-center"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retake
+              </Button>
+              <Button 
+                onClick={handleDownload} 
+                className="w-auto px-6"
+              >
+                Download Selected
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
