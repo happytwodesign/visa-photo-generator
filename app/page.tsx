@@ -185,18 +185,24 @@ export default function Home() {
       <h1 className="text-4xl font-bold mb-2">Schengen Visa</h1>
       <p className="text-lg mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="flex flex-col h-full">
+      <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
+        <div className="flex flex-col">
           {!processedPhoto ? (
+            <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-[70%] mx-auto" style={{ aspectRatio: '35/45' }}>
+              <PhotoUpload 
+                onUpload={handlePhotoUpload} 
+                uploadedPhotoUrl={uploadedPhotoUrl} 
+                onDelete={handleDeletePhoto}
+              />
+            </div>
+          ) : (
+            <div className="md:w-full w-[70%] mx-auto">
+              <PhotoPreview photoUrl={processedPhoto} />
+            </div>
+          )}
+          {!isMobile && (
             <>
-              <div className="flex-grow bg-white rounded-[10px] overflow-hidden relative md:w-full w-[70%] mx-auto" style={{ aspectRatio: '35/45' }}>
-                <PhotoUpload 
-                  onUpload={handlePhotoUpload} 
-                  uploadedPhotoUrl={uploadedPhotoUrl} 
-                  onDelete={handleDeletePhoto}
-                />
-              </div>
-              {!isMobile && (
+              {!processedPhoto ? (
                 <div className="mt-4">
                   <GenerateButton 
                     onClick={handleGenerate} 
@@ -204,14 +210,7 @@ export default function Home() {
                     showMessage={showUploadMessage}
                   />
                 </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="flex-grow md:w-full w-[70%] mx-auto">
-                <PhotoPreview photoUrl={processedPhoto} />
-              </div>
-              {!isMobile && (
+              ) : (
                 <div className="mt-4 flex justify-start">
                   <Button onClick={handleRetake} variant="link" className="px-0">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -223,39 +222,38 @@ export default function Home() {
           )}
           {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
         </div>
-        <div className="flex flex-col h-full">
-          <div className="flex-grow overflow-auto" style={{ maxHeight: 'calc(100% - 3rem)' }}>
-            {!isMobile && (
-              <h3 className="text-2xl font-semibold mb-4">
-                {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
-              </h3>
-            )}
-            <RequirementsList 
-              requirements={processedPhoto ? allRequirementsMet : undefined} 
-              showChecks={!!processedPhoto}
-            />
-            
-            {!processedPhoto && !isMobile && (
-              <div className="flex items-center space-x-2 mt-4 mb-4">
-                <Switch
-                  id="remove-bg"
-                  checked={removeBg}
-                  onCheckedChange={handleRemoveBgChange}
-                />
-                <Label htmlFor="remove-bg">Remove Background</Label>
-              </div>
-            )}
+        <div className="flex flex-col">
+          {!isMobile && (
+            <h3 className="text-2xl font-semibold mb-4">
+              {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+            </h3>
+          )}
+          <RequirementsList 
+            requirements={processedPhoto ? allRequirementsMet : undefined} 
+            showChecks={!!processedPhoto}
+          />
+          
+          {!processedPhoto && !isMobile && (
+            <div className="flex items-center space-x-2 mt-4 mb-4">
+              <Switch
+                id="remove-bg"
+                checked={removeBg}
+                onCheckedChange={handleRemoveBgChange}
+              />
+              <Label htmlFor="remove-bg">Remove Background</Label>
+            </div>
+          )}
 
-            {processedPhoto && (
-              <div className="mt-4">
-                <DownloadOptions 
-                  photoUrl={processedPhoto} 
-                  onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                  onSelectionChange={setSelectedSizes}
-                />
-              </div>
-            )}
-          </div>
+          {processedPhoto && (
+            <div className="mt-4">
+              <DownloadOptions 
+                photoUrl={processedPhoto} 
+                onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                onSelectionChange={setSelectedSizes}
+              />
+            </div>
+          )}
+          
           {processedPhoto && !isMobile && (
             <div className="mt-4">
               <div className="flex justify-end">
