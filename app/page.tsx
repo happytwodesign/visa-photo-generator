@@ -14,6 +14,7 @@ import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/useMediaQuery'; // You'll need to create this hook
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -176,6 +177,8 @@ export default function Home() {
       }
     }
   };
+
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
     <div className="max-w-5xl mx-auto text-[#0F172A]">

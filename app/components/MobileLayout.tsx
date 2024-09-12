@@ -1,23 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react'
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { usePathname } from 'next/navigation'
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
-  const [removeBg, setRemoveBg] = useState(false)
-
-  useEffect(() => {
-    const storedRemoveBg = localStorage.getItem('removeBg')
-    if (storedRemoveBg !== null) {
-      setRemoveBg(JSON.parse(storedRemoveBg))
-    }
-  }, [])
-
-  const handleRemoveBgChange = (checked: boolean) => {
-    setRemoveBg(checked)
-    localStorage.setItem('removeBg', JSON.stringify(checked))
-  }
+  const pathname = usePathname()
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -27,16 +13,6 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-grow p-4">
         {children}
       </main>
-      <footer className="bg-gray-100 p-4">
-        <div className="flex items-center justify-center space-x-2">
-          <Switch
-            id="remove-bg"
-            checked={removeBg}
-            onCheckedChange={handleRemoveBgChange}
-          />
-          <Label htmlFor="remove-bg">Remove Background</Label>
-        </div>
-      </footer>
     </div>
   )
 }
