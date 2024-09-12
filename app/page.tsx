@@ -189,7 +189,7 @@ export default function Home() {
         <div className="flex flex-col h-full">
           {!processedPhoto ? (
             <>
-              <div className="flex-grow bg-white rounded-[10px] overflow-hidden relative" style={{ aspectRatio: '35/45' }}>
+              <div className="flex-grow bg-white rounded-[10px] overflow-hidden relative md:w-full w-[70%] mx-auto" style={{ aspectRatio: '35/45' }}>
                 <PhotoUpload 
                   onUpload={handlePhotoUpload} 
                   uploadedPhotoUrl={uploadedPhotoUrl} 
@@ -206,7 +206,7 @@ export default function Home() {
             </>
           ) : (
             <>
-              <div className="flex-grow">
+              <div className="flex-grow md:w-full w-[70%] mx-auto">
                 <PhotoPreview photoUrl={processedPhoto} />
               </div>
               <div className="mt-4">
