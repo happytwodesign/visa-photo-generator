@@ -25,14 +25,14 @@ export default function RequirementsList({ requirements, showChecks = false }: R
   const requirementsToShow = requirements || defaultRequirements;
 
   return (
-    <ul className="space-y-2">
+    <ul className={`space-y-2 ${!showChecks ? 'list-disc list-inside' : ''}`}>
       {Object.entries(requirementsToShow).map(([requirement, met]) => (
-        <li key={requirement} className={`flex items-start ${isMobile ? 'text-sm' : 'text-base'}`}>
-          {showChecks && (
+        <li key={requirement} className={`${isMobile ? 'text-sm' : 'text-base'} ${showChecks ? 'flex items-start' : ''}`}>
+          {showChecks ? (
             <span className={`mr-2 mt-1 ${met ? 'text-green-500' : 'text-red-500'}`}>
               {met ? <Check size={16} /> : '✗'}
             </span>
-          )}
+          ) : null}
           <span>{requirement}</span>
         </li>
       ))}
