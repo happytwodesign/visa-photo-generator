@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface RequirementsListProps {
   requirements?: Record<string, boolean>;
