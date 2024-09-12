@@ -196,21 +196,40 @@ export default function Home() {
                   onDelete={handleDeletePhoto}
                 />
               </div>
+              {!isMobile && (
+                <div className="mt-4">
+                  <GenerateButton 
+                    onClick={handleGenerate} 
+                    isProcessing={isProcessing} 
+                    showMessage={showUploadMessage}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <>
               <div className="flex-grow md:w-full w-[70%] mx-auto">
                 <PhotoPreview photoUrl={processedPhoto} />
               </div>
+              {!isMobile && (
+                <div className="mt-4 flex justify-start">
+                  <Button onClick={handleRetake} variant="link" className="px-0">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retake
+                  </Button>
+                </div>
+              )}
             </>
           )}
           {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
         </div>
         <div className="flex flex-col h-full">
           <div className="flex-grow overflow-auto" style={{ maxHeight: 'calc(100% - 3rem)' }}>
-            <h3 className="text-2xl font-semibold mb-4">
-              {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
-            </h3>
+            {!isMobile && (
+              <h3 className="text-2xl font-semibold mb-4">
+                {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+              </h3>
+            )}
             <RequirementsList 
               requirements={processedPhoto ? allRequirementsMet : undefined} 
               showChecks={!!processedPhoto}
