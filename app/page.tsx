@@ -228,10 +228,38 @@ export default function Home() {
               {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
             </h3>
           )}
-          <RequirementsList 
-            requirements={processedPhoto ? allRequirementsMet : undefined} 
-            showChecks={!!processedPhoto}
-          />
+          
+          {isMobile && processedPhoto ? (
+            <>
+              <div className="mt-4">
+                <DownloadOptions 
+                  photoUrl={processedPhoto} 
+                  onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                  onSelectionChange={setSelectedSizes}
+                />
+              </div>
+              <RequirementsList 
+                requirements={allRequirementsMet} 
+                showChecks={true}
+              />
+            </>
+          ) : (
+            <>
+              <RequirementsList 
+                requirements={processedPhoto ? allRequirementsMet : undefined} 
+                showChecks={!!processedPhoto}
+              />
+              {processedPhoto && (
+                <div className="mt-4">
+                  <DownloadOptions 
+                    photoUrl={processedPhoto} 
+                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                    onSelectionChange={setSelectedSizes}
+                  />
+                </div>
+              )}
+            </>
+          )}
           
           {!processedPhoto && !isMobile && (
             <div className="flex items-center space-x-2 mt-4 mb-4">
@@ -241,16 +269,6 @@ export default function Home() {
                 onCheckedChange={handleRemoveBgChange}
               />
               <Label htmlFor="remove-bg">Remove Background</Label>
-            </div>
-          )}
-
-          {processedPhoto && (
-            <div className="mt-4">
-              <DownloadOptions 
-                photoUrl={processedPhoto} 
-                onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                onSelectionChange={setSelectedSizes}
-              />
             </div>
           )}
           
