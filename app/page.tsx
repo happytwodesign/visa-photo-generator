@@ -234,14 +234,23 @@ export default function Home() {
             )}
             
             <div className="flex-grow">
+              {isMobile && processedPhoto && (
+                <div className="mb-4">
+                  <DownloadOptions 
+                    photoUrl={processedPhoto} 
+                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                    onSelectionChange={setSelectedSizes}
+                  />
+                </div>
+              )}
+
               {/* Requirements list */}
               <RequirementsList 
                 requirements={processedPhoto ? allRequirementsMet : undefined} 
                 showChecks={!!processedPhoto}
               />
 
-              {/* Download options - only show when photo is processed */}
-              {processedPhoto && (
+              {!isMobile && processedPhoto && (
                 <div className="mt-4">
                   <DownloadOptions 
                     photoUrl={processedPhoto} 
@@ -250,7 +259,7 @@ export default function Home() {
                   />
                 </div>
               )}
-              
+
               {!processedPhoto && !isMobile && (
                 <div className="flex items-center space-x-2 mt-4 mb-4">
                   <Switch
@@ -263,7 +272,7 @@ export default function Home() {
               )}
             </div>
             
-            {/* Download button - always at the bottom */}
+            {/* Download button - always at the bottom for non-mobile */}
             {processedPhoto && !isMobile && (
               <div className="mt-4 flex justify-end">
                 <Button 
