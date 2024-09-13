@@ -14,8 +14,7 @@ import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-import UploadPage from './components/UploadPage';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
