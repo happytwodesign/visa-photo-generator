@@ -1,4 +1,4 @@
-import { ProcessingConfig } from '../types';
+import { ProcessingConfigType } from '../types';
 
 export async function checkCompliance(photoUrl: string) {
   // Implement logic to check if the photo meets Schengen visa requirements
@@ -9,6 +9,11 @@ export async function checkCompliance(photoUrl: string) {
     headPosition: true,
     faceExpression: true,
   };
+}
+
+// If you need to use ProcessingConfigType in this file, you can do so like this:
+export function someFunction(config: ProcessingConfigType) {
+  // ...
 }
 
 export async function generateTemplate(photoUrl: string, format: string) {

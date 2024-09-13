@@ -1,91 +1,96 @@
 'use client';
 
-import { useState } from "react";
-import { useImageProcessing } from "@/hooks/useImageProcessing";
-import RequirementsList from './RequirementsList';
+import React, { useState } from 'react';
 import PhotoUpload from './PhotoUpload';
-import GenerateButton from './GenerateButton';
-import PhotoPreview from './PhotoPreview';
-import DownloadOptions from './DownloadOptions';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { processPhoto, ProcessingConfig } from '../lib/photoProcessing';
 
-export function UploadPage() {
-  const { processImage, isProcessing, processedImage, error } = useImageProcessing();
+const UploadPage: React.FC = () => {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
-  const [showUploadMessage, setShowUploadMessage] = useState(false);
-  const [requirements, setRequirements] = useState<Record<string, boolean>>({});
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
+  const [requirements, setRequirements] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePhotoUpload = (file: File) => {
+  const handleImageUpload = (file: File) => {
     setUploadedPhoto(file);
     setUploadedPhotoUrl(URL.createObjectURL(file));
-    setShowUploadMessage(false);
   };
 
-  const handleGenerate = async () => {
+  const handleDeletePhoto = () => {
+    setUploadedPhoto(null);
+    setUploadedPhotoUrl(null);
+  };
+
+  const handleProcessImage = async () => {
     if (!uploadedPhoto) {
-      setShowUploadMessage(true);
+      setError('Please upload a photo first');
       return;
     }
 
     try {
       const storedRemoveBg = localStorage.getItem('removeBg');
       const removeBg = storedRemoveBg ? JSON.parse(storedRemoveBg) : false;
-      const result = await processImage(uploadedPhoto, removeBg);
+      
+      const processingConfig: ProcessingConfig = {
+        resize: true,
+        removeBackground: removeBg,
+        changeBgToLightGray: true,
+        fitHead: true,
+        fixHeadTilt: true,
+        adjustContrast: true,
+        photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
+      };
+
+      const result = await processPhoto(uploadedPhoto, processingConfig);
       setProcessedImage(result.photoUrl);
       setOnlineSubmissionUrl(result.onlineSubmissionUrl);
       setRequirements(result.requirements);
+      setError(null);
     } catch (err) {
-      console.error('Error processing photo:', err);
+      console.error('Error processing image:', err);
+      setError('Failed to process the image. Please try again.');
     }
   };
 
-  const handleRetake = () => {
-    setUploadedPhoto(null);
-    setUploadedPhotoUrl(null);
-    setProcessedImage(null);
-    setOnlineSubmissionUrl(null);
-    setRequirements({});
-  };
-
   return (
-    <div className="max-w-5xl mx-auto">
-      <h1 className="text-4xl font-bold mb-8">Upload Your Photo</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div>
+      <h1>Upload and Process Your Image</h1>
+      <PhotoUpload 
+        onUpload={handleImageUpload}
+        uploadedPhotoUrl={uploadedPhotoUrl}
+        onDelete={handleDeletePhoto}
+      />
+      <button onClick={handleProcessImage}>Process Image</button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {processedImage && (
         <div>
-          {!processedImage ? (
-            <>
-              <PhotoUpload onUpload={handlePhotoUpload} uploadedPhotoUrl={uploadedPhotoUrl} onDelete={() => setUploadedPhoto(null)} />
-              <GenerateButton onClick={handleGenerate} isProcessing={isProcessing} showMessage={showUploadMessage} />
-            </>
-          ) : (
-            <>
-              <PhotoPreview photoUrl={processedImage} />
-              <Button onClick={handleRetake} variant="link" className="mt-4">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retake
-              </Button>
-            </>
-          )}
+          <h2>Processed Image:</h2>
+          <img src={processedImage} alt="Processed" />
         </div>
-        
+      )}
+      {onlineSubmissionUrl && (
         <div>
-          <RequirementsList requirements={requirements} showChecks={!!processedImage} />
-          
-          {processedImage && (
-            <DownloadOptions 
-              photoUrl={processedImage} 
-              onlineSubmissionUrl={onlineSubmissionUrl || ''} 
-              onSelectionChange={() => {}} // Add a proper handler if needed
-            />
-          )}
+          <h2>Online Submission URL:</h2>
+          <a href={onlineSubmissionUrl} target="_blank" rel="noopener noreferrer">
+            {onlineSubmissionUrl}
+          </a>
         </div>
-      </div>
-      
-      {error && <p className="text-red-500 mt-4">{error}</p>}
+      )}
+      {Object.keys(requirements).length > 0 && (
+        <div>
+          <h2>Requirements Check:</h2>
+          <ul>
+            {Object.entries(requirements).map(([req, met]) => (
+              <li key={req}>
+                {req}: {met ? '✅' : '❌'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default UploadPage;

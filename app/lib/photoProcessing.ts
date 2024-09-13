@@ -1,6 +1,8 @@
-import { ProcessingConfig } from '../types';
+import { ProcessingConfigType } from '../types';
 
-export const defaultConfig: ProcessingConfig = {
+export type ProcessingConfig = ProcessingConfigType;
+
+export const defaultConfig: Omit<ProcessingConfig, 'photoRoomApiKey'> = {
   resize: true,
   removeBackground: true,
   changeBgToLightGray: true,

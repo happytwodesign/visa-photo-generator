@@ -8,13 +8,14 @@ import DownloadOptions from './components/DownloadOptions';
 import RequirementsList from './components/RequirementsList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
-import { ProcessingConfig as ProcessingConfigType } from './types';
+import { ProcessingConfigType } from './types';
 import { Button } from './components/ui/button';
 import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import UploadPage from './components/UploadPage';
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -26,12 +27,8 @@ export default function Home() {
   const [showUploadMessage, setShowUploadMessage] = useState(false);
   const [onlineSubmissionUrl, setOnlineSubmissionUrl] = useState<string | null>(null);
   const [config, setConfig] = useState<ProcessingConfigType>({
-    resize: true,
-    removeBackground: true,
-    changeBgToLightGray: true,
-    fitHead: true,
-    fixHeadTilt: true,
-    adjustContrast: true,
+    ...defaultConfig,
+    photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
   });
   const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -187,6 +184,7 @@ export default function Home() {
         <p className="text-base md:text-lg mb-4 md:mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
         
         <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
+          {/* Left column - Photo upload/preview */}
           <div className="flex flex-col">
             {!processedPhoto ? (
               <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45' }}>
@@ -213,7 +211,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="mt-4 flex justify-start">
-                    <Button onClick={handleRetake} variant="link" className="px-0">
+                    <Button onClick={handleRetake} className="px-0 text-primary underline-offset-4 hover:underline">
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Retake
                     </Button>
@@ -223,6 +221,8 @@ export default function Home() {
             )}
             {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
           </div>
+
+          {/* Right column - Requirements and Download options */}
           <div className="flex flex-col">
             {!isMobile && (
               <h3 className="text-2xl font-semibold mb-4">
@@ -230,36 +230,21 @@ export default function Home() {
               </h3>
             )}
             
-            {isMobile && processedPhoto ? (
-              <>
-                <div className="mt-4">
-                  <DownloadOptions 
-                    photoUrl={processedPhoto} 
-                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                    onSelectionChange={setSelectedSizes}
-                  />
-                </div>
-                <RequirementsList 
-                  requirements={allRequirementsMet} 
-                  showChecks={true}
+            {/* Requirements list */}
+            <RequirementsList 
+              requirements={processedPhoto ? allRequirementsMet : undefined} 
+              showChecks={!!processedPhoto}
+            />
+
+            {/* Download options - only show when photo is processed */}
+            {processedPhoto && (
+              <div className="mt-4">
+                <DownloadOptions 
+                  photoUrl={processedPhoto} 
+                  onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                  onSelectionChange={setSelectedSizes}
                 />
-              </>
-            ) : (
-              <>
-                <RequirementsList 
-                  requirements={processedPhoto ? allRequirementsMet : undefined} 
-                  showChecks={!!processedPhoto}
-                />
-                {processedPhoto && (
-                  <div className="mt-4">
-                    <DownloadOptions 
-                      photoUrl={processedPhoto} 
-                      onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                      onSelectionChange={setSelectedSizes}
-                    />
-                  </div>
-                )}
-              </>
+              </div>
             )}
             
             {!processedPhoto && !isMobile && (
@@ -312,8 +297,7 @@ export default function Home() {
               <div className="flex justify-between items-center">
                 <Button 
                   onClick={handleRetake} 
-                  variant="outline"
-                  className="flex items-center"
+                  className="flex items-center border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Retake

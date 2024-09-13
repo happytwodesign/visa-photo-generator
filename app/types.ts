@@ -1,4 +1,4 @@
-export interface ProcessingConfig {
+export interface ProcessingConfigType {
   resize: boolean;
   removeBackground: boolean;
   changeBgToLightGray: boolean;
