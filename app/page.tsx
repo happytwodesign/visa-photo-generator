@@ -227,51 +227,52 @@ export default function Home() {
           </div>
 
           {/* Right column - Requirements and Download options */}
-          <div className="flex flex-col">
+          <div className="flex flex-col h-full">
             {!isMobile && (
               <h3 className="text-2xl font-semibold mb-4">
                 {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
               </h3>
             )}
             
-            {/* Requirements list */}
-            <RequirementsList 
-              requirements={processedPhoto ? allRequirementsMet : undefined} 
-              showChecks={!!processedPhoto}
-            />
+            <div className="flex-grow">
+              {/* Requirements list */}
+              <RequirementsList 
+                requirements={processedPhoto ? allRequirementsMet : undefined} 
+                showChecks={!!processedPhoto}
+              />
 
-            {/* Download options - only show when photo is processed */}
-            {processedPhoto && (
-              <div className="mt-4">
-                <DownloadOptions 
-                  photoUrl={processedPhoto} 
-                  onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                  onSelectionChange={setSelectedSizes}
-                />
-              </div>
-            )}
+              {/* Download options - only show when photo is processed */}
+              {processedPhoto && (
+                <div className="mt-4">
+                  <DownloadOptions 
+                    photoUrl={processedPhoto} 
+                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                    onSelectionChange={setSelectedSizes}
+                  />
+                </div>
+              )}
+              
+              {!processedPhoto && !isMobile && (
+                <div className="flex items-center space-x-2 mt-4 mb-4">
+                  <Switch
+                    id="remove-bg"
+                    checked={removeBg}
+                    onCheckedChange={handleRemoveBgChange}
+                  />
+                  <Label htmlFor="remove-bg">Remove Background</Label>
+                </div>
+              )}
+            </div>
             
-            {!processedPhoto && !isMobile && (
-              <div className="flex items-center space-x-2 mt-4 mb-4">
-                <Switch
-                  id="remove-bg"
-                  checked={removeBg}
-                  onCheckedChange={handleRemoveBgChange}
-                />
-                <Label htmlFor="remove-bg">Remove Background</Label>
-              </div>
-            )}
-            
+            {/* Download button - always at the bottom */}
             {processedPhoto && !isMobile && (
               <div className="mt-4">
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={handleDownload} 
-                    className="w-auto px-6"
-                  >
-                    Download Selected
-                  </Button>
-                </div>
+                <Button 
+                  onClick={handleDownload} 
+                  className="w-full px-6"
+                >
+                  Download Selected
+                </Button>
                 {downloadError && <p className="text-gray-500 mt-2 text-center">{downloadError}</p>}
               </div>
             )}
