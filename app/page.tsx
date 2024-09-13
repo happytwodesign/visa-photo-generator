@@ -211,7 +211,11 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="mt-4 flex justify-start">
-                    <Button onClick={handleRetake} className="px-0 text-primary underline-offset-4 hover:underline">
+                    <Button 
+                      onClick={handleRetake} 
+                      variant="outline" 
+                      className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                    >
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Retake
                     </Button>
@@ -297,7 +301,8 @@ export default function Home() {
               <div className="flex justify-between items-center">
                 <Button 
                   onClick={handleRetake} 
-                  className="flex items-center border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                  variant="outline" 
+                  className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Retake
