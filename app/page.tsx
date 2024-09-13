@@ -187,8 +187,10 @@ export default function Home() {
   return (
     <div className="max-w-5xl mx-auto text-[#0F172A] relative min-h-screen pb-20 md:pb-0">
       <div className={`${isMobile ? 'w-[80%] mx-auto' : 'w-full'}`}>
-        <h1 className="text-2xl md:text-4xl font-bold mb-2">Schengen Visa</h1>
-        <p className="text-base md:text-lg mb-4 md:mb-8">Get your perfect Schengen visa photo in just a few clicks.</p>
+        <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
+        <p className={`text-base md:text-lg ${isMobile ? 'mb-2' : 'mb-4 md:mb-8'}`}>
+          Get your perfect Schengen visa photo in just a few clicks.
+        </p>
         
         <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
           {/* Left column - Photo upload/preview */}
