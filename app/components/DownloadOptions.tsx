@@ -7,26 +7,18 @@ import { Check } from 'lucide-react';
 interface DownloadOptionsProps {
   photoUrl: string;
   onlineSubmissionUrl: string;
-  onSelectionChange: (selectedSizes: Set<'online' | 'A4' | 'A5' | 'A6'>) => void;
+  onSelectionChange: (selectedSize: 'online' | 'A4' | 'A5' | 'A6' | null) => void;
 }
 
 const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmissionUrl, onSelectionChange }) => {
-  const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
+  const [selectedSize, setSelectedSize] = useState<'online' | 'A4' | 'A5' | 'A6' | null>('online');
 
   useEffect(() => {
-    onSelectionChange(selectedSizes);
-  }, [selectedSizes, onSelectionChange]);
+    onSelectionChange(selectedSize);
+  }, [selectedSize, onSelectionChange]);
 
   const handleChange = (size: 'online' | 'A4' | 'A5' | 'A6') => {
-    setSelectedSizes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(size)) {
-        newSet.delete(size);
-      } else {
-        newSet.add(size);
-      }
-      return newSet;
-    });
+    setSelectedSize(prevSize => prevSize === size ? null : size);
   };
 
   return (
@@ -36,7 +28,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
           <div key={size} className="relative">
             <Checkbox
               id={`size-${size}`}
-              checked={selectedSizes.has(size as 'online' | 'A4' | 'A5' | 'A6')}
+              checked={selectedSize === size}
               onCheckedChange={() => handleChange(size as 'online' | 'A4' | 'A5' | 'A6')}
               className="sr-only"
             />
@@ -49,7 +41,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
                 paperSize={size as 'online' | 'A4' | 'A5' | 'A6'}
               />
               <div className="flex items-center justify-center mt-1">
-                {selectedSizes.has(size as 'online' | 'A4' | 'A5' | 'A6') && (
+                {selectedSize === size && (
                   <Check size={16} className="mr-1 text-primary" />
                 )}
                 <span className="text-sm text-[#0F172A]">{size === 'online' ? 'Online' : size}</span>
