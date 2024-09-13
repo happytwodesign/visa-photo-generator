@@ -32,6 +32,7 @@ export default function Home() {
   const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [removeBg, setRemoveBg] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -51,6 +52,7 @@ export default function Home() {
     setError(null);
     setProcessedPhoto(null);
     setShowUploadMessage(false);
+    setGenerateError(null); // Clear the generate error message
   };
 
   const checkImageDimensions = (url: string) => {
@@ -74,10 +76,11 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!uploadedPhoto) {
-      setShowUploadMessage(true);
+      setGenerateError('Please upload a photo first.');
       return;
     }
 
+    setGenerateError(null);
     setIsProcessing(true);
     try {
       const processingConfig = {
@@ -99,7 +102,7 @@ export default function Home() {
       checkImageDimensions(response.photoUrl);
     } catch (error) {
       console.error('Error processing photo:', error);
-      setError(`Failed to process photo. Error: ${error instanceof Error ? error.message : String(error)}`);
+      setGenerateError(`Failed to process photo. Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -174,6 +177,11 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    // Clear download error when selected sizes change
+    setDownloadError(null);
+  }, [selectedSizes]);
+
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
@@ -205,8 +213,9 @@ export default function Home() {
                     <GenerateButton 
                       onClick={handleGenerate} 
                       isProcessing={isProcessing} 
-                      showMessage={showUploadMessage}
+                      showMessage={false}
                     />
+                    {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
                   </div>
                 ) : (
                   <div className="mt-4 flex justify-start">
@@ -222,7 +231,7 @@ export default function Home() {
                 )}
               </>
             )}
-            {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
+            {error && <p className="text-gray-500 mt-2 text-center text-sm">{error}</p>}
           </div>
 
           {/* Right column - Requirements and Download options */}
@@ -274,54 +283,59 @@ export default function Home() {
             
             {/* Download button - always at the bottom for non-mobile */}
             {processedPhoto && !isMobile && (
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex flex-col items-end">
                 <Button 
                   onClick={handleDownload} 
                   className="px-6"
                 >
                   Download Selected
                 </Button>
+                {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
               </div>
             )}
-            {downloadError && <p className="text-gray-500 mt-2 text-center">{downloadError}</p>}
           </div>
         </div>
-        {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
         
         {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
             {!processedPhoto ? (
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="remove-bg-mobile"
-                    checked={removeBg}
-                    onCheckedChange={handleRemoveBgChange}
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="remove-bg-mobile"
+                      checked={removeBg}
+                      onCheckedChange={handleRemoveBgChange}
+                    />
+                    <Label htmlFor="remove-bg-mobile">Remove Background</Label>
+                  </div>
+                  <GenerateButton 
+                    onClick={handleGenerate} 
+                    isProcessing={isProcessing} 
+                    showMessage={false}
                   />
-                  <Label htmlFor="remove-bg-mobile">Remove Background</Label>
                 </div>
-                <GenerateButton 
-                  onClick={handleGenerate} 
-                  isProcessing={isProcessing} 
-                  showMessage={showUploadMessage}
-                />
+                {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
               </div>
             ) : (
-              <div className="flex justify-between items-center">
-                <Button 
-                  onClick={handleRetake} 
-                  variant="outline" 
-                  className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Retake
-                </Button>
-                <Button 
-                  onClick={handleDownload} 
-                  className="w-auto px-6"
-                >
-                  Download Selected
-                </Button>
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center">
+                  <Button 
+                    onClick={handleRetake} 
+                    variant="outline" 
+                    className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retake
+                  </Button>
+                  <Button 
+                    onClick={handleDownload} 
+                    className="w-auto px-6"
+                  >
+                    Download Selected
+                  </Button>
+                </div>
+                {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
               </div>
             )}
           </div>
