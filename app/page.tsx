@@ -266,16 +266,16 @@ export default function Home() {
             
             {/* Download button - always at the bottom */}
             {processedPhoto && !isMobile && (
-              <div className="mt-4">
+              <div className="mt-4 flex justify-end">
                 <Button 
                   onClick={handleDownload} 
-                  className="w-full px-6"
+                  className="px-6"
                 >
                   Download Selected
                 </Button>
-                {downloadError && <p className="text-gray-500 mt-2 text-center">{downloadError}</p>}
               </div>
             )}
+            {downloadError && <p className="text-gray-500 mt-2 text-center">{downloadError}</p>}
           </div>
         </div>
         {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
