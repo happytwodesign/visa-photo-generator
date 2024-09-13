@@ -290,7 +290,9 @@ export default function Home() {
                 >
                   Download Selected
                 </Button>
-                {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                <div className="h-6"> {/* Fixed height container for error message */}
+                  {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                </div>
               </div>
             )}
           </div>
