@@ -185,42 +185,146 @@ export default function Home() {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
-    <div className="max-w-5xl mx-auto text-[#0F172A] relative min-h-screen pb-20 md:pb-0">
-      <div className={`${isMobile ? 'w-[80%] mx-auto' : 'w-full'}`}>
-        <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
-        <p className={`text-base md:text-lg ${isMobile ? 'mb-2' : 'mb-4 md:mb-8'}`}>
-          Get your perfect Schengen visa photo in just a few clicks.
-        </p>
-        
-        <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
-          {/* Left column - Photo upload/preview */}
-          <div className="flex flex-col">
-            {!processedPhoto ? (
-              <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45' }}>
-                <PhotoUpload 
-                  onUpload={handlePhotoUpload} 
-                  uploadedPhotoUrl={uploadedPhotoUrl} 
-                  onDelete={handleDeletePhoto}
+    <div className={`${!isMobile ? 'flex items-center justify-center min-h-screen overflow-y-auto' : ''}`}>
+      <div className="max-w-5xl mx-auto text-[#0F172A] relative pb-20 md:pb-0">
+        <div className={`${isMobile ? 'w-[80%] mx-auto' : 'w-full'}`}>
+          <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
+          <p className={`text-base md:text-lg ${isMobile ? 'mb-2' : 'mb-4 md:mb-8'}`}>
+            Get your perfect Schengen visa photo in just a few clicks.
+          </p>
+          
+          <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
+            {/* Left column - Photo upload/preview */}
+            <div className="flex flex-col">
+              {!processedPhoto ? (
+                <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45' }}>
+                  <PhotoUpload 
+                    onUpload={handlePhotoUpload} 
+                    uploadedPhotoUrl={uploadedPhotoUrl} 
+                    onDelete={handleDeletePhoto}
+                  />
+                </div>
+              ) : (
+                <div className="md:w-full w-full mx-auto">
+                  <PhotoPreview photoUrl={processedPhoto} />
+                </div>
+              )}
+              {!isMobile && (
+                <>
+                  {!processedPhoto ? (
+                    <div className="mt-4">
+                      <GenerateButton 
+                        onClick={handleGenerate} 
+                        isProcessing={isProcessing} 
+                        showMessage={false}
+                      />
+                      {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex justify-start">
+                      <Button 
+                        onClick={handleRetake} 
+                        variant="outline" 
+                        className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Retake
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+              {error && <p className="text-gray-500 mt-2 text-center text-sm">{error}</p>}
+            </div>
+
+            {/* Right column - Requirements and Download options */}
+            <div className="flex flex-col h-full">
+              {!isMobile && (
+                <h3 className="text-2xl font-semibold mb-4">
+                  {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+                </h3>
+              )}
+              
+              <div className="flex-grow">
+                {isMobile && processedPhoto && (
+                  <div className="mb-4">
+                    <DownloadOptions 
+                      photoUrl={processedPhoto} 
+                      onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                      onSelectionChange={setSelectedSizes}
+                    />
+                  </div>
+                )}
+
+                {/* Requirements list */}
+                <RequirementsList 
+                  requirements={processedPhoto ? allRequirementsMet : undefined} 
+                  showChecks={!!processedPhoto}
                 />
-              </div>
-            ) : (
-              <div className="md:w-full w-full mx-auto">
-                <PhotoPreview photoUrl={processedPhoto} />
-              </div>
-            )}
-            {!isMobile && (
-              <>
-                {!processedPhoto ? (
+
+                {!isMobile && processedPhoto && (
                   <div className="mt-4">
+                    <DownloadOptions 
+                      photoUrl={processedPhoto} 
+                      onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                      onSelectionChange={setSelectedSizes}
+                    />
+                  </div>
+                )}
+
+                {!processedPhoto && !isMobile && (
+                  <div className="flex items-center space-x-2 mt-4 mb-4">
+                    <Switch
+                      id="remove-bg"
+                      checked={removeBg}
+                      onCheckedChange={handleRemoveBgChange}
+                    />
+                    <Label htmlFor="remove-bg">Remove Background</Label>
+                  </div>
+                )}
+              </div>
+              
+              {/* Download button - always at the bottom for non-mobile */}
+              {processedPhoto && !isMobile && (
+                <div className="mt-4 flex flex-col items-end">
+                  <Button 
+                    onClick={handleDownload} 
+                    className="px-6"
+                  >
+                    Download Selected
+                  </Button>
+                  <div className="h-6"> {/* Fixed height container for error message */}
+                    {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {isMobile && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
+              {!processedPhoto ? (
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="remove-bg-mobile"
+                        checked={removeBg}
+                        onCheckedChange={handleRemoveBgChange}
+                      />
+                      <Label htmlFor="remove-bg-mobile">Remove Background</Label>
+                    </div>
                     <GenerateButton 
                       onClick={handleGenerate} 
                       isProcessing={isProcessing} 
                       showMessage={false}
                     />
-                    {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
                   </div>
-                ) : (
-                  <div className="mt-4 flex justify-start">
+                  {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center">
                     <Button 
                       onClick={handleRetake} 
                       variant="outline" 
@@ -229,121 +333,19 @@ export default function Home() {
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Retake
                     </Button>
+                    <Button 
+                      onClick={handleDownload} 
+                      className="w-auto px-6"
+                    >
+                      Download Selected
+                    </Button>
                   </div>
-                )}
-              </>
-            )}
-            {error && <p className="text-gray-500 mt-2 text-center text-sm">{error}</p>}
-          </div>
-
-          {/* Right column - Requirements and Download options */}
-          <div className="flex flex-col h-full">
-            {!isMobile && (
-              <h3 className="text-2xl font-semibold mb-4">
-                {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
-              </h3>
-            )}
-            
-            <div className="flex-grow">
-              {isMobile && processedPhoto && (
-                <div className="mb-4">
-                  <DownloadOptions 
-                    photoUrl={processedPhoto} 
-                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                    onSelectionChange={setSelectedSizes}
-                  />
-                </div>
-              )}
-
-              {/* Requirements list */}
-              <RequirementsList 
-                requirements={processedPhoto ? allRequirementsMet : undefined} 
-                showChecks={!!processedPhoto}
-              />
-
-              {!isMobile && processedPhoto && (
-                <div className="mt-4">
-                  <DownloadOptions 
-                    photoUrl={processedPhoto} 
-                    onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                    onSelectionChange={setSelectedSizes}
-                  />
-                </div>
-              )}
-
-              {!processedPhoto && !isMobile && (
-                <div className="flex items-center space-x-2 mt-4 mb-4">
-                  <Switch
-                    id="remove-bg"
-                    checked={removeBg}
-                    onCheckedChange={handleRemoveBgChange}
-                  />
-                  <Label htmlFor="remove-bg">Remove Background</Label>
+                  {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
                 </div>
               )}
             </div>
-            
-            {/* Download button - always at the bottom for non-mobile */}
-            {processedPhoto && !isMobile && (
-              <div className="mt-4 flex flex-col items-end">
-                <Button 
-                  onClick={handleDownload} 
-                  className="px-6"
-                >
-                  Download Selected
-                </Button>
-                <div className="h-6"> {/* Fixed height container for error message */}
-                  {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-        
-        {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
-            {!processedPhoto ? (
-              <div className="flex flex-col">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="remove-bg-mobile"
-                      checked={removeBg}
-                      onCheckedChange={handleRemoveBgChange}
-                    />
-                    <Label htmlFor="remove-bg-mobile">Remove Background</Label>
-                  </div>
-                  <GenerateButton 
-                    onClick={handleGenerate} 
-                    isProcessing={isProcessing} 
-                    showMessage={false}
-                  />
-                </div>
-                {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
-              </div>
-            ) : (
-              <div className="flex flex-col">
-                <div className="flex justify-between items-center">
-                  <Button 
-                    onClick={handleRetake} 
-                    variant="outline" 
-                    className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retake
-                  </Button>
-                  <Button 
-                    onClick={handleDownload} 
-                    className="w-auto px-6"
-                  >
-                    Download Selected
-                  </Button>
-                </div>
-                {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
