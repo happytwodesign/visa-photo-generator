@@ -41,7 +41,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
             />
             <Label
               htmlFor={`size-${size}`}
-              className="block p-1 border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full"
+              className="block border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full"
               style={{
                 aspectRatio: size === 'online' ? '35 / 45' : '1 / 1.414',
                 transform: `scale(${paperSizeConfig[size].scale})`,
@@ -53,11 +53,18 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
                 paperSize={size}
                 grid={paperSizeConfig[size].grid}
               />
-              <div className="flex items-center justify-center mt-1">
+              <div 
+                className="flex items-center justify-center mt-1 px-2"
+                style={{ 
+                  transform: `scale(${1 / paperSizeConfig[size].scale})`,
+                  fontSize: '14px', // Set a fixed font size for all labels
+                  padding: '4px 0', // Added vertical padding
+                }}
+              >
                 {selectedSize === size && (
                   <Check size={16} className="mr-1 text-primary" />
                 )}
-                <span className="text-sm text-[#0F172A]">{size === 'online' ? 'Online' : size}</span>
+                <span className="text-[#0F172A]">{size === 'online' ? 'Online' : size}</span>
               </div>
             </Label>
           </div>
