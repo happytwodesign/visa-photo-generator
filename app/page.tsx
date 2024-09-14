@@ -29,7 +29,7 @@ export default function Home() {
     ...defaultConfig,
     photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
   });
-  const [selectedSizes, setSelectedSizes] = useState<Set<'online' | 'A4' | 'A5' | 'A6'>>(new Set(['online']));
+  const [selectedSize, setSelectedSize] = useState<'online' | 'A4' | 'A5' | 'A6' | null>('online');
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [removeBg, setRemoveBg] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -137,14 +137,14 @@ export default function Home() {
   };
 
   const handleDownload = async () => {
-    if (selectedSizes.size === 0) {
-      setDownloadError('Please select at least one option to download.');
+    if (!selectedSize) {
+      setDownloadError('Please select an option to download.');
       return;
     }
 
     setDownloadError(null);
 
-    if (selectedSizes.has('online') && processedPhoto) {
+    if (selectedSize === 'online' && processedPhoto) {
       const link = document.createElement('a');
       link.href = processedPhoto;
       link.download = 'schengen_visa_photo_online.png';
@@ -154,22 +154,18 @@ export default function Home() {
     }
 
     const paperSizes = ['A4', 'A5', 'A6'];
-    const selectedPaperSizes = paperSizes.filter(size => selectedSizes.has(size as 'A4' | 'A5' | 'A6'));
-
-    if (selectedPaperSizes.length > 0 && processedPhoto) {
+    if (paperSizes.includes(selectedSize) && processedPhoto) {
       try {
         const templates = await generateTemplates(processedPhoto);
-        selectedPaperSizes.forEach((size, index) => {
-          const blob = templates[paperSizes.indexOf(size)];
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `schengen_visa_photo_${size.toLowerCase()}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        });
+        const blob = templates[paperSizes.indexOf(selectedSize)];
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `schengen_visa_photo_${selectedSize.toLowerCase()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       } catch (error) {
         console.error('Error generating templates:', error);
         setError('Failed to generate templates for download.');
@@ -180,7 +176,7 @@ export default function Home() {
   useEffect(() => {
     // Clear download error when selected sizes change
     setDownloadError(null);
-  }, [selectedSizes]);
+  }, [selectedSize]);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
 
@@ -251,7 +247,7 @@ export default function Home() {
                     <DownloadOptions 
                       photoUrl={processedPhoto} 
                       onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                      onSelectionChange={setSelectedSizes}
+                      onSelectionChange={setSelectedSize}
                     />
                   </div>
                 )}
@@ -267,7 +263,7 @@ export default function Home() {
                     <DownloadOptions 
                       photoUrl={processedPhoto} 
                       onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                      onSelectionChange={setSelectedSizes}
+                      onSelectionChange={setSelectedSize}
                     />
                   </div>
                 )}
