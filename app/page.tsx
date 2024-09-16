@@ -192,22 +192,23 @@ export default function Home() {
           <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
             {/* Left column - Photo upload/preview */}
             <div className="flex flex-col items-center justify-start h-full">
-              <div className={`w-full ${processedPhoto ? 'max-w-full' : 'max-w-[350px]'} flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%-24px)]' : 'h-full'}`}>
-                <div className={`bg-white rounded-[10px] overflow-hidden relative w-full ${processedPhoto ? '' : 'aspect-[35/45]'}`}>
-                  <div className={`${processedPhoto ? 'w-full h-auto' : 'absolute inset-0'}`}>
-                    {!processedPhoto ? (
-                      <PhotoUpload 
-                        onUpload={handlePhotoUpload} 
-                        uploadedPhotoUrl={uploadedPhotoUrl} 
-                        onDelete={handleDeletePhoto}
-                      />
-                    ) : (
-                      <PhotoPreview photoUrl={processedPhoto} />
-                    )}
-                  </div>
+              <div className={`w-full ${processedPhoto ? 'max-w-full' : 'max-w-[350px]'} flex flex-col ${processedPhoto && !isMobile ? 'h-auto' : 'h-full'}`}>
+                <div 
+                  className={`bg-white rounded-[10px] overflow-hidden relative w-full`}
+                  style={{ aspectRatio: '35/45' }}
+                >
+                  {!processedPhoto ? (
+                    <PhotoUpload 
+                      onUpload={handlePhotoUpload} 
+                      uploadedPhotoUrl={uploadedPhotoUrl} 
+                      onDelete={handleDeletePhoto}
+                    />
+                  ) : (
+                    <PhotoPreview photoUrl={processedPhoto} />
+                  )}
                 </div>
                 {!isMobile && (
-                  <div className="mt-4 flex flex-col w-full flex-grow justify-between">
+                  <div className="mt-4 flex flex-col w-full">
                     <div>
                       {!processedPhoto ? (
                         <GenerateButton 
@@ -223,7 +224,7 @@ export default function Home() {
                       </div>
                     </div>
                     {processedPhoto && (
-                      <div className="flex justify-start mt-auto">
+                      <div className="flex justify-start mt-4">
                         <Button 
                           onClick={handleRetake} 
                           variant="outline" 
