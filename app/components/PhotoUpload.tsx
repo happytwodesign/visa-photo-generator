@@ -26,7 +26,7 @@ export default function PhotoUpload({ onUpload, uploadedPhotoUrl, onDelete }: Ph
     <div {...getRootProps()} className="absolute inset-0">
       <input {...getInputProps()} />
       {uploadedPhotoUrl ? (
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full rounded-[10px] overflow-hidden"> {/* Added rounded-[10px] and overflow-hidden */}
           <img 
             src={uploadedPhotoUrl} 
             alt="Uploaded photo" 

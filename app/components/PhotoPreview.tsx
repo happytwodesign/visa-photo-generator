@@ -6,7 +6,7 @@ interface PhotoPreviewProps {
 
 export default function PhotoPreview({ photoUrl }: PhotoPreviewProps) {
   return (
-    <div className="w-full h-0 pb-[128.57%] relative bg-gray-100"> {/* 128.57% is (45/35 * 100) */}
+    <div className="w-full h-0 pb-[128.57%] relative bg-gray-100 rounded-[10px] overflow-hidden"> {/* Added rounded-[10px] and overflow-hidden */}
       <img 
         src={photoUrl} 
         alt="Processed photo" 
