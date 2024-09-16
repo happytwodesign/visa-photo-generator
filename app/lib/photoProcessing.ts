@@ -16,14 +16,25 @@ export async function processPhoto(photo: File, config: ProcessingConfig) {
   formData.append('photo', photo);
   formData.append('config', JSON.stringify(config));
 
-  const response = await fetch('/api/process-photo', {
-    method: 'POST',
-    body: formData,
-  });
+  try {
+    const response = await fetch('/api/process-photo', {
+      method: 'POST',
+      body: formData,
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to process photo');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to process photo: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      return await response.json();
+    } else {
+      throw new Error("Received non-JSON response from server");
+    }
+  } catch (error) {
+    console.error('Error in processPhoto:', error);
+    throw error; // Re-throw the error to be handled by the caller
   }
-
-  return response.json();
 }

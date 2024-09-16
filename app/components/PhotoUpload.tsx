@@ -8,7 +8,7 @@ interface PhotoUploadProps {
   onDelete: () => void;
 }
 
-const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, onDelete }) => {
+export default function PhotoUpload({ onUpload, uploadedPhotoUrl, onDelete }: PhotoUploadProps) {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       onUpload(acceptedFiles[0]);
@@ -23,13 +23,10 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
   });
 
   return (
-    <div 
-      {...getRootProps()} 
-      className="relative w-full h-full cursor-pointer"
-    >
+    <div {...getRootProps()} className="w-full h-full">
       <input {...getInputProps()} />
       {uploadedPhotoUrl ? (
-        <>
+        <div className="relative w-full h-full">
           <img 
             src={uploadedPhotoUrl} 
             alt="Uploaded photo" 
@@ -45,9 +42,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
           >
             <X size={24} className="text-gray-600" />
           </button>
-        </>
+        </div>
       ) : (
-        <div className="bg-gray-100 w-full h-full rounded-[10px] flex flex-col items-center justify-center">
+        <div className="bg-gray-100 w-full h-full rounded-[10px] flex flex-col items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
           <p className="text-lg mb-2">
             {isDragActive ? "Drop the photo here" : "Click to upload your photo"}
           </p>
@@ -59,6 +56,4 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onUpload, uploadedPhotoUrl, o
       )}
     </div>
   );
-};
-
-export default PhotoUpload;
+}

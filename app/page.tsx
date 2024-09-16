@@ -192,19 +192,19 @@ export default function Home() {
           <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
             {/* Left column - Photo upload/preview */}
             <div className="flex flex-col">
-              {!processedPhoto ? (
-                <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45' }}>
-                  <PhotoUpload 
-                    onUpload={handlePhotoUpload} 
-                    uploadedPhotoUrl={uploadedPhotoUrl} 
-                    onDelete={handleDeletePhoto}
-                  />
+              <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45', maxWidth: '350px' }}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {!processedPhoto ? (
+                    <PhotoUpload 
+                      onUpload={handlePhotoUpload} 
+                      uploadedPhotoUrl={uploadedPhotoUrl} 
+                      onDelete={handleDeletePhoto}
+                    />
+                  ) : (
+                    <PhotoPreview photoUrl={processedPhoto} />
+                  )}
                 </div>
-              ) : (
-                <div className="md:w-full w-full mx-auto">
-                  <PhotoPreview photoUrl={processedPhoto} />
-                </div>
-              )}
+              </div>
               {!isMobile && (
                 <>
                   {!processedPhoto ? (

@@ -32,7 +32,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
     <div className="mt-4">
       <div className="grid grid-cols-4 gap-4 mb-4">
         {(['online', 'A4', 'A5', 'A6'] as const).map((size) => (
-          <div key={size} className="relative flex justify-start items-start"> {/* Changed this line */}
+          <div key={size} className="relative flex justify-start items-start">
             <Checkbox
               id={`size-${size}`}
               checked={selectedSize === size}
@@ -45,7 +45,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
               style={{
                 aspectRatio: size === 'online' ? '35 / 45' : '1 / 1.414',
                 transform: `scale(${paperSizeConfig[size].scale})`,
-                transformOrigin: 'top center', // Changed this line
+                transformOrigin: 'top center',
               }}
             >
               <PrintPreview 
@@ -57,8 +57,8 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
                 className="flex items-center justify-center mt-1 px-2"
                 style={{ 
                   transform: `scale(${1 / paperSizeConfig[size].scale})`,
-                  fontSize: '14px', // Set a fixed font size for all labels
-                  padding: '4px 0', // Added vertical padding
+                  fontSize: '14px',
+                  padding: '4px 0',
                   marginBottom: size === 'A5' || size === 'A6' ? `${8 / paperSizeConfig[size].scale}px` : '0', // Add bottom margin for A5 and A6
                 }}
               >
