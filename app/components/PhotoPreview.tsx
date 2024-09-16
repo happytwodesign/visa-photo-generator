@@ -10,7 +10,7 @@ export default function PhotoPreview({ photoUrl }: PhotoPreviewProps) {
       <img 
         src={photoUrl} 
         alt="Processed photo" 
-        className="max-w-full max-h-full object-contain"
+        className="w-full h-auto object-contain"
       />
     </div>
   );
