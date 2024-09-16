@@ -207,15 +207,22 @@ export default function Home() {
                   </div>
                   {!isMobile && (
                     <div className="mt-4 flex flex-col w-full">
-                      {!processedPhoto ? (
-                        <GenerateButton 
-                          onClick={handleGenerate} 
-                          isProcessing={isProcessing} 
-                          showMessage={false}
-                          className="w-full"
-                        />
-                      ) : (
-                        <div className="flex justify-start">
+                      <div>
+                        {!processedPhoto ? (
+                          <GenerateButton 
+                            onClick={handleGenerate} 
+                            isProcessing={isProcessing} 
+                            showMessage={false}
+                            className="w-full"
+                          />
+                        ) : null}
+                        <div className="h-6 mt-2">
+                          {generateError && <p className="text-gray-500 text-sm">{generateError}</p>}
+                          {error && <p className="text-gray-500 text-sm">{error}</p>}
+                        </div>
+                      </div>
+                      {processedPhoto && (
+                        <div className="flex justify-start mt-4">
                           <Button 
                             onClick={handleRetake} 
                             variant="outline" 
@@ -226,25 +233,31 @@ export default function Home() {
                           </Button>
                         </div>
                       )}
-                      <div className="h-6 mt-2">
-                        {generateError && <p className="text-gray-500 text-sm">{generateError}</p>}
-                        {error && <p className="text-gray-500 text-sm">{error}</p>}
-                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Right column - Requirements and Download options */}
-              <div className={`flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%)]' : 'h-full'}`}>
+              <div className={`flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%+24px)]' : 'h-full'}`}>
                 {!isMobile && (
                   <h3 className="text-2xl font-semibold mb-4">
                     {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
                   </h3>
                 )}
                 
-                <div className="flex-grow flex flex-col">
+                <div className="flex-grow flex flex-col justify-between">
                   <div>
+                    {isMobile && processedPhoto && (
+                      <div className="mb-4">
+                        <DownloadOptions 
+                          photoUrl={processedPhoto} 
+                          onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                          onSelectionChange={setSelectedSize}
+                        />
+                      </div>
+                    )}
+
                     {/* Requirements list */}
                     <RequirementsList 
                       requirements={processedPhoto ? allRequirementsMet : undefined} 
@@ -258,18 +271,6 @@ export default function Home() {
                           onlineSubmissionUrl={onlineSubmissionUrl || ''}
                           onSelectionChange={setSelectedSize}
                         />
-                        <div className="mt-4 flex justify-between items-center">
-                          <div className="w-6" /> {/* Spacer to align Download button with Retake button */}
-                          <Button 
-                            onClick={handleDownload} 
-                            className="px-6"
-                          >
-                            Download Selected
-                          </Button>
-                        </div>
-                        <div className="h-6 mt-2">
-                          {downloadError && <p className="text-gray-500 text-sm">{downloadError}</p>}
-                        </div>
                       </div>
                     )}
 
@@ -284,6 +285,21 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Download button - always at the bottom for non-mobile */}
+                  {processedPhoto && !isMobile && (
+                    <div className="mt-4 flex flex-col items-end">
+                      <Button 
+                        onClick={handleDownload} 
+                        className="px-6"
+                      >
+                        Download Selected
+                      </Button>
+                      <div className="h-6">
+                        {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
