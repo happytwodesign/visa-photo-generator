@@ -181,7 +181,7 @@ export default function Home() {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
-    <div className={`${!isMobile ? 'flex items-center justify-center min-h-screen overflow-y-auto' : ''}`}>
+    <div className={`${!isMobile ? 'flex items-start justify-center min-h-screen overflow-y-auto' : ''}`}>
       <div className="max-w-5xl mx-auto text-[#0F172A] relative pb-20 md:pb-0">
         <div className={`${isMobile ? 'w-[80%] mx-auto' : 'w-full'}`}>
           <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
@@ -191,44 +191,52 @@ export default function Home() {
           
           <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
             {/* Left column - Photo upload/preview */}
-            <div className="flex flex-col">
-              <div className="bg-white rounded-[10px] overflow-hidden relative md:w-full w-full mx-auto" style={{ aspectRatio: '35/45', maxWidth: '350px' }}>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  {!processedPhoto ? (
-                    <PhotoUpload 
-                      onUpload={handlePhotoUpload} 
-                      uploadedPhotoUrl={uploadedPhotoUrl} 
-                      onDelete={handleDeletePhoto}
-                    />
-                  ) : (
-                    <PhotoPreview photoUrl={processedPhoto} />
-                  )}
-                </div>
-              </div>
-              {!isMobile && (
-                <div className="mt-4 flex flex-col">
-                  {!processedPhoto ? (
-                    <GenerateButton 
-                      onClick={handleGenerate} 
-                      isProcessing={isProcessing} 
-                      showMessage={false}
-                    />
-                  ) : (
-                    <Button 
-                      onClick={handleRetake} 
-                      variant="outline" 
-                      className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Retake
-                    </Button>
-                  )}
-                  <div className="h-6 mt-2"> {/* Fixed height container for error messages */}
-                    {generateError && <p className="text-gray-500 text-center text-sm">{generateError}</p>}
-                    {error && <p className="text-gray-500 text-center text-sm">{error}</p>}
+            <div className="flex flex-col items-center justify-start h-full">
+              <div className="w-full max-w-[350px] flex flex-col h-full">
+                <div className="bg-white rounded-[10px] overflow-hidden relative w-full" style={{ aspectRatio: '35/45' }}>
+                  <div className="absolute inset-0">
+                    {!processedPhoto ? (
+                      <PhotoUpload 
+                        onUpload={handlePhotoUpload} 
+                        uploadedPhotoUrl={uploadedPhotoUrl} 
+                        onDelete={handleDeletePhoto}
+                      />
+                    ) : (
+                      <PhotoPreview photoUrl={processedPhoto} />
+                    )}
                   </div>
                 </div>
-              )}
+                {!isMobile && (
+                  <div className="mt-4 flex flex-col w-full flex-grow justify-between">
+                    <div>
+                      {!processedPhoto ? (
+                        <GenerateButton 
+                          onClick={handleGenerate} 
+                          isProcessing={isProcessing} 
+                          showMessage={false}
+                          className="w-full"
+                        />
+                      ) : null}
+                      <div className="h-6 mt-2">
+                        {generateError && <p className="text-gray-500 text-sm">{generateError}</p>}
+                        {error && <p className="text-gray-500 text-sm">{error}</p>}
+                      </div>
+                    </div>
+                    {processedPhoto && (
+                      <div className="flex justify-start mt-auto">
+                        <Button 
+                          onClick={handleRetake} 
+                          variant="outline" 
+                          className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <ArrowLeft className="mr-2 h-4 w-4" />
+                          Retake
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Right column - Requirements and Download options */}
@@ -239,59 +247,61 @@ export default function Home() {
                 </h3>
               )}
               
-              <div className="flex-grow">
-                {isMobile && processedPhoto && (
-                  <div className="mb-4">
-                    <DownloadOptions 
-                      photoUrl={processedPhoto} 
-                      onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                      onSelectionChange={setSelectedSize}
-                    />
-                  </div>
-                )}
+              <div className="flex-grow flex flex-col justify-between">
+                <div>
+                  {isMobile && processedPhoto && (
+                    <div className="mb-4">
+                      <DownloadOptions 
+                        photoUrl={processedPhoto} 
+                        onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                        onSelectionChange={setSelectedSize}
+                      />
+                    </div>
+                  )}
 
-                {/* Requirements list */}
-                <RequirementsList 
-                  requirements={processedPhoto ? allRequirementsMet : undefined} 
-                  showChecks={!!processedPhoto}
-                />
+                  {/* Requirements list */}
+                  <RequirementsList 
+                    requirements={processedPhoto ? allRequirementsMet : undefined} 
+                    showChecks={!!processedPhoto}
+                  />
 
-                {!isMobile && processedPhoto && (
-                  <div className="mt-4">
-                    <DownloadOptions 
-                      photoUrl={processedPhoto} 
-                      onlineSubmissionUrl={onlineSubmissionUrl || ''}
-                      onSelectionChange={setSelectedSize}
-                    />
-                  </div>
-                )}
+                  {!isMobile && processedPhoto && (
+                    <div className="mt-4">
+                      <DownloadOptions 
+                        photoUrl={processedPhoto} 
+                        onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                        onSelectionChange={setSelectedSize}
+                      />
+                    </div>
+                  )}
 
-                {!processedPhoto && !isMobile && (
-                  <div className="flex items-center space-x-2 mt-4 mb-4">
-                    <Switch
-                      id="remove-bg"
-                      checked={removeBg}
-                      onCheckedChange={handleRemoveBgChange}
-                    />
-                    <Label htmlFor="remove-bg">Remove Background</Label>
+                  {!processedPhoto && !isMobile && (
+                    <div className="flex items-center space-x-2 mt-4 mb-4">
+                      <Switch
+                        id="remove-bg"
+                        checked={removeBg}
+                        onCheckedChange={handleRemoveBgChange}
+                      />
+                      <Label htmlFor="remove-bg">Remove Background</Label>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Download button - always at the bottom for non-mobile */}
+                {processedPhoto && !isMobile && (
+                  <div className="mt-4 flex flex-col items-end">
+                    <Button 
+                      onClick={handleDownload} 
+                      className="px-6"
+                    >
+                      Download Selected
+                    </Button>
+                    <div className="h-6">
+                      {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                    </div>
                   </div>
                 )}
               </div>
-              
-              {/* Download button - always at the bottom for non-mobile */}
-              {processedPhoto && !isMobile && (
-                <div className="mt-4 flex flex-col items-end">
-                  <Button 
-                    onClick={handleDownload} 
-                    className="px-6"
-                  >
-                    Download Selected
-                  </Button>
-                  <div className="h-6"> {/* Fixed height container for error message */}
-                    {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           

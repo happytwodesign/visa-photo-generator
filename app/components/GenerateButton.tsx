@@ -5,21 +5,17 @@ interface GenerateButtonProps {
   onClick: () => void;
   isProcessing: boolean;
   showMessage: boolean;
+  className?: string;
 }
 
-const GenerateButton: React.FC<GenerateButtonProps> = ({ onClick, isProcessing, showMessage }) => {
+export default function GenerateButton({ onClick, isProcessing, showMessage, className }: GenerateButtonProps) {
   return (
-    <div>
-      <Button
-        onClick={onClick}
-        disabled={isProcessing}
-        className="w-full h-10 text-sm font-medium bg-primary text-primary-foreground"
-      >
-        {isProcessing ? 'Processing...' : 'Generate'}
-      </Button>
-      {showMessage && <p className="text-gray-500 mt-2 text-center">Please upload a photo first.</p>}
-    </div>
+    <Button 
+      onClick={onClick} 
+      disabled={isProcessing}
+      className={className}
+    >
+      {isProcessing ? 'Processing...' : 'Generate'}
+    </Button>
   );
-};
-
-export default GenerateButton;
+}
