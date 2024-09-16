@@ -192,7 +192,7 @@ export default function Home() {
           <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
             {/* Left column - Photo upload/preview */}
             <div className="flex flex-col items-center justify-start h-full">
-              <div className={`w-full ${processedPhoto ? 'max-w-full' : 'max-w-[350px]'} flex flex-col ${processedPhoto && !isMobile ? 'h-auto' : 'h-full'}`}>
+              <div className={`w-full ${processedPhoto ? 'max-w-full' : 'max-w-[350px]'} flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%-24px)]' : 'h-full'}`}>
                 <div 
                   className={`bg-white rounded-[10px] overflow-hidden relative w-full`}
                   style={{ aspectRatio: '35/45' }}
@@ -241,7 +241,7 @@ export default function Home() {
             </div>
 
             {/* Right column - Requirements and Download options */}
-            <div className="flex flex-col h-full">
+            <div className={`flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%+24px)]' : 'h-full'}`}>
               {!isMobile && (
                 <h3 className="text-2xl font-semibold mb-4">
                   {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
