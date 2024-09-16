@@ -206,31 +206,29 @@ export default function Home() {
                 </div>
               </div>
               {!isMobile && (
-                <>
+                <div className="mt-4 flex flex-col">
                   {!processedPhoto ? (
-                    <div className="mt-4">
-                      <GenerateButton 
-                        onClick={handleGenerate} 
-                        isProcessing={isProcessing} 
-                        showMessage={false}
-                      />
-                      {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
-                    </div>
+                    <GenerateButton 
+                      onClick={handleGenerate} 
+                      isProcessing={isProcessing} 
+                      showMessage={false}
+                    />
                   ) : (
-                    <div className="mt-4 flex justify-start">
-                      <Button 
-                        onClick={handleRetake} 
-                        variant="outline" 
-                        className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Retake
-                      </Button>
-                    </div>
+                    <Button 
+                      onClick={handleRetake} 
+                      variant="outline" 
+                      className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Retake
+                    </Button>
                   )}
-                </>
+                  <div className="h-6 mt-2"> {/* Fixed height container for error messages */}
+                    {generateError && <p className="text-gray-500 text-center text-sm">{generateError}</p>}
+                    {error && <p className="text-gray-500 text-center text-sm">{error}</p>}
+                  </div>
+                </div>
               )}
-              {error && <p className="text-gray-500 mt-2 text-center text-sm">{error}</p>}
             </div>
 
             {/* Right column - Requirements and Download options */}
