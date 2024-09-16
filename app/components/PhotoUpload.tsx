@@ -23,7 +23,7 @@ export default function PhotoUpload({ onUpload, uploadedPhotoUrl, onDelete }: Ph
   });
 
   return (
-    <div {...getRootProps()} className="w-full h-full">
+    <div {...getRootProps()} className="absolute inset-0">
       <input {...getInputProps()} />
       {uploadedPhotoUrl ? (
         <div className="relative w-full h-full">
