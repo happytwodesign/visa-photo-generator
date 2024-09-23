@@ -3,7 +3,6 @@ import { jsPDF } from 'jspdf';
 export async function generateTemplates(photoUrl: string): Promise<Blob[]> {
   const templates: Blob[] = [];
 
-  // Function to create a template for a specific paper size
   const createTemplate = (width: number, height: number, photoWidth: number, photoHeight: number) => {
     const doc = new jsPDF({
       orientation: width > height ? 'landscape' : 'portrait',
@@ -11,22 +10,29 @@ export async function generateTemplates(photoUrl: string): Promise<Blob[]> {
       format: [width, height]
     });
 
-    // Calculate the number of photos that can fit on the page
-    const cols = Math.floor(width / photoWidth);
-    const rows = Math.floor(height / photoHeight);
+    // Add padding to the sides (e.g., 10mm on each side)
+    const sidePadding = 10;
+    const topBottomPadding = 10;
+
+    // Add spacing between photos (e.g., 2mm)
+    const spacing = 2;
+
+    // Calculate the number of photos that can fit on the page with padding and spacing
+    const cols = Math.floor((width - 2 * sidePadding + spacing) / (photoWidth + spacing));
+    const rows = Math.floor((height - 2 * topBottomPadding + spacing) / (photoHeight + spacing));
 
     // Calculate margins to center the grid
-    const marginX = (width - (cols * photoWidth)) / 2;
-    const marginY = (height - (rows * photoHeight)) / 2;
+    const marginX = (width - (cols * photoWidth + (cols - 1) * spacing)) / 2;
+    const marginY = (height - (rows * photoHeight + (rows - 1) * spacing)) / 2;
 
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         doc.addImage(
-          photoUrl, 
-          'JPEG', 
-          marginX + j * photoWidth, 
-          marginY + i * photoHeight, 
-          photoWidth, 
+          photoUrl,
+          'JPEG',
+          marginX + j * (photoWidth + spacing),
+          marginY + i * (photoHeight + spacing),
+          photoWidth,
           photoHeight
         );
       }
