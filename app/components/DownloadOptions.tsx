@@ -11,10 +11,10 @@ interface DownloadOptionsProps {
 }
 
 const paperSizeConfig = {
-  'online': { grid: [1, 1] as [number, number], scale: 1 },
-  'A4': { grid: [6, 6] as [number, number], scale: 1 },
-  'A5': { grid: [4, 4] as [number, number], scale: 0.7071 }, // sqrt(2)/2
-  'A6': { grid: [3, 3] as [number, number], scale: 0.5 }
+  'online': { grid: [1, 1] as [number, number], scale: 1, aspectRatio: '35 / 45' },
+  'A4': { grid: [6, 6] as [number, number], scale: 1, aspectRatio: '1 / 1.414' },
+  'A5': { grid: [4, 4] as [number, number], scale: 0.7071, aspectRatio: '1 / 1.414' },
+  'A6': { grid: [3, 3] as [number, number], scale: 0.5, aspectRatio: '1 / 1.414' }
 };
 
 const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmissionUrl, onSelectionChange }) => {
@@ -30,9 +30,15 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
 
   return (
     <div className="mt-4">
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
         {(['online', 'A4', 'A5', 'A6'] as const).map((size) => (
-          <div key={size} className="relative flex justify-start items-start">
+          <div 
+            key={size} 
+            style={{
+              width: `${paperSizeConfig[size].scale * 22}%`,
+              aspectRatio: paperSizeConfig[size].aspectRatio,
+            }}
+          >
             <Checkbox
               id={`size-${size}`}
               checked={selectedSize === size}
@@ -41,12 +47,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
             />
             <Label
               htmlFor={`size-${size}`}
-              className="block border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full"
-              style={{
-                aspectRatio: size === 'online' ? '35 / 45' : '1 / 1.414',
-                transform: `scale(${paperSizeConfig[size].scale})`,
-                transformOrigin: 'top center',
-              }}
+              className="block border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full h-full"
             >
               <PrintPreview 
                 photoUrl={size === 'online' ? onlineSubmissionUrl : photoUrl} 
@@ -56,10 +57,8 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
               <div 
                 className="flex items-center justify-center mt-1 px-2"
                 style={{ 
-                  transform: `scale(${1 / paperSizeConfig[size].scale})`,
                   fontSize: '14px',
                   padding: '4px 0',
-                  marginBottom: size === 'A5' || size === 'A6' ? `${8 / paperSizeConfig[size].scale}px` : '0', // Add bottom margin for A5 and A6
                 }}
               >
                 {selectedSize === size && (
