@@ -16,7 +16,7 @@ import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
-import heic2any from 'heic2any';
+import * as heic2any from 'heic2any';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -294,10 +294,12 @@ export default function Home() {
       <div className="max-w-5xl mx-auto text-[#0F172A] w-full flex flex-col flex-grow">
         <div className={`${!isMobile ? 'flex-grow flex items-center' : ''}`}>
           <div className={`${isMobile ? 'w-full px-4' : 'w-full'}`}>
-            <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
-            <p className={`text-base md:text-lg ${isMobile ? 'mb-2' : 'mb-4 md:mb-8'}`}>
-              Get your perfect Schengen visa photo in just a few clicks.
-            </p>
+            <div className={`${isMobile ? 'max-w-[350px] mx-auto' : ''}`}>
+              <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1 text-left' : 'mb-2'}`}>Schengen Visa</h1>
+              <p className={`text-base md:text-lg ${isMobile ? 'mb-2 text-left' : 'mb-4 md:mb-8'}`}>
+                Get your perfect Schengen visa photo in just a few clicks.
+              </p>
+            </div>
             
             <div className={`grid grid-cols-1 ${!isMobile ? 'md:grid-cols-2' : ''} gap-8`}>
               {/* Left column - Photo upload/preview */}
@@ -358,8 +360,8 @@ export default function Home() {
                 <div className="flex-grow flex flex-col justify-between">
                   <div>
                     {isMobile && processedPhoto && (
-                      <div className="mb-6 w-full max-w-[350px] mx-auto">
-                        <h4 className="text-lg font-semibold mb-2 text-center">Click to download</h4>
+                      <div className="mb-12 w-full max-w-[350px] mx-auto">
+                        <h4 className="text-lg font-semibold mb-2 text-left">Click to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={onlineSubmissionUrl || ''}
@@ -369,7 +371,7 @@ export default function Home() {
                     )}
 
                     {/* Requirements list */}
-                    <div className={`${isMobile ? 'mb-32' : ''}`}>
+                    <div className={`${isMobile ? 'mb-32 max-w-[350px] mx-auto' : ''}`}>
                       <RequirementsList 
                         requirements={processedPhoto ? allRequirementsMet : undefined} 
                         showChecks={!!processedPhoto}
