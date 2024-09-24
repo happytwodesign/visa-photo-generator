@@ -16,7 +16,7 @@ import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
-import * as heic2any from 'heic2any';
+import heic2any from 'heic2any';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -82,6 +82,7 @@ export default function Home() {
   const [backgroundRemovedPhoto, setBackgroundRemovedPhoto] = useState<string | null>(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const [isCorrectingBackground, setIsCorrectingBackground] = useState(false);
+  const [isBackgroundRemoved, setIsBackgroundRemoved] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -212,18 +213,23 @@ export default function Home() {
   };
 
   const handleBackgroundCorrection = async () => {
-    if (!uploadedPhoto || !processedPhoto) {
-      setDownloadError('No photo available for background correction.');
+    if (!processedPhoto) {
+      setDownloadError('No processed photo available for background correction.');
       return;
     }
 
     setDownloadError(null);
     setIsCorrectingBackground(true);
     try {
-      const backgroundRemovedBlob = await removeBackground(uploadedPhoto);
+      // Convert the processedPhoto URL to a Blob
+      const response = await fetch(processedPhoto);
+      const blob = await response.blob();
+
+      const backgroundRemovedBlob = await removeBackground(blob);
       const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
       setCurrentPhotoUrl(backgroundRemovedUrl);
       setProcessedPhoto(backgroundRemovedUrl);
+      setIsBackgroundRemoved(true);
       console.log('Background removal completed, new URL:', backgroundRemovedUrl);
     } catch (error) {
       console.error('Error in background correction:', error);
@@ -231,6 +237,11 @@ export default function Home() {
     } finally {
       setIsCorrectingBackground(false);
     }
+  };
+
+  const handleEmailPhotos = () => {
+    // Implement email functionality here
+    console.log('Email photos functionality to be implemented');
   };
 
   const handleDownload = async () => {
@@ -394,11 +405,12 @@ export default function Home() {
                   {processedPhoto && !isMobile && (
                     <div className="mt-4 flex flex-col items-end">
                       <Button 
-                        onClick={handleBackgroundCorrection} 
+                        onClick={isBackgroundRemoved ? handleEmailPhotos : handleBackgroundCorrection} 
                         className="px-6"
                         disabled={isCorrectingBackground}
                       >
-                        {isCorrectingBackground ? 'Processing...' : 'Correct background $2.99'}
+                        {isCorrectingBackground ? 'Processing...' : 
+                         isBackgroundRemoved ? 'Email photos' : 'Swap Background for $2.99'}
                       </Button>
                       <div className="h-6">
                         {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
@@ -444,11 +456,12 @@ export default function Home() {
                     Retake
                   </Button>
                   <Button 
-                    onClick={handleBackgroundCorrection} 
+                    onClick={isBackgroundRemoved ? handleEmailPhotos : handleBackgroundCorrection} 
                     className="w-auto px-6"
                     disabled={isCorrectingBackground}
                   >
-                    {isCorrectingBackground ? 'Processing...' : 'Correct background $2.99'}
+                    {isCorrectingBackground ? 'Processing...' : 
+                     isBackgroundRemoved ? 'Email photos' : 'Swap Background for $2.99'}
                   </Button>
                 </div>
                 {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
