@@ -10,7 +10,7 @@ interface DownloadOptionsProps {
 }
 
 const paperSizeConfig = {
-  'online': { grid: [1, 1] as [number, number], scale: 1, aspectRatio: '35 / 45' },
+  'online': { grid: [1, 1] as [number, number], scale: 1, aspectRatio: '3 / 4' }, // Updated aspect ratio for 'online'
   'A4': { grid: [5, 5] as [number, number], scale: 1, aspectRatio: '1 / 1.414' },
   'A5': { grid: [3, 4] as [number, number], scale: 0.8, aspectRatio: '1 / 1.414' },
   'A6': { grid: [2, 2] as [number, number], scale: 0.6, aspectRatio: '1 / 1.414' }
@@ -29,7 +29,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
 
   return (
     <div className="mt-4">
-      <div className="download-options-container" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-start', alignItems: 'flex-start', height: 'auto' }}>
+      <div className="download-options-container" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-start', alignItems: 'flex-start', height: 'auto', padding: '10px 0' }}>
         {(['online', 'A4', 'A5', 'A6'] as const).map((size) => (
           <div 
             key={size} 
@@ -72,10 +72,12 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
             margin: 0 auto;
             justify-content: space-between;
             flex-wrap: nowrap;
+            height: auto; /* Ensure the container height is auto to fit the cards */
           }
           .download-option-card {
             flex: 1;
             max-width: 22%; /* Ensure all 4 cards fit within one line */
+            height: auto; /* Ensure the card height is auto to fit the content */
           }
           .print-preview-wrapper {
             width: 100%;
