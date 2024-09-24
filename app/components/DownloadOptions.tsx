@@ -29,13 +29,17 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
 
   return (
     <div className="mt-4">
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+      <div className="download-options-container" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-start', alignItems: 'flex-start', height: 'auto' }}>
         {(['online', 'A4', 'A5', 'A6'] as const).map((size) => (
           <div 
             key={size} 
+            className="download-option-card"
             style={{
               width: `${paperSizeConfig[size].scale * 22}%`,
               aspectRatio: paperSizeConfig[size].aspectRatio,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
             <Checkbox
@@ -48,16 +52,43 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
               htmlFor={`size-${size}`}
               className="block border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full h-full"
             >
-              <PrintPreview 
-                photoUrl={size === 'online' ? onlineSubmissionUrl : photoUrl} 
-                paperSize={size}
-                grid={paperSizeConfig[size].grid}
-                isSelected={selectedSize === size} // Pass the isSelected prop
-              />
+              <div className="print-preview-wrapper" style={{ flexGrow: 1 }}>
+                <PrintPreview 
+                  photoUrl={size === 'online' ? onlineSubmissionUrl : photoUrl} 
+                  paperSize={size}
+                  grid={paperSizeConfig[size].grid}
+                  isSelected={selectedSize === size} // Pass the isSelected prop
+                />
+              </div>
             </Label>
           </div>
         ))}
       </div>
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .download-options-container {
+            width: 100%;
+            max-width: 350px; /* Adjust this value to match the preview image width */
+            margin: 0 auto;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+          }
+          .download-option-card {
+            flex: 1;
+            max-width: 22%; /* Ensure all 4 cards fit within one line */
+          }
+          .print-preview-wrapper {
+            width: 100%;
+            height: auto;
+            aspect-ratio: ${paperSizeConfig['online'].aspectRatio};
+          }
+        }
+        @media (min-width: 769px) {
+          .download-option-card {
+            gap: 10px; /* Smaller gap between cards on desktop */
+          }
+        }
+      `}</style>
     </div>
   );
 };
