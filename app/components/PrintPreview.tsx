@@ -1,53 +1,84 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 
 interface PrintPreviewProps {
   photoUrl: string;
   paperSize: 'online' | 'A4' | 'A5' | 'A6';
   grid: [number, number];
+  isSelected: boolean; // Add a prop to indicate if the card is selected
 }
 
-const PrintPreview: React.FC<PrintPreviewProps> = ({ photoUrl, paperSize, grid }) => {
+const PrintPreview: React.FC<PrintPreviewProps> = ({ photoUrl, paperSize, grid, isSelected }) => {
   const [cols, rows] = grid;
-  const aspectRatio = paperSize === 'online' ? '35 / 45' : '1 / 1.414';
-  const gapSize = '1px'; // Adjust this value to change both row and column gaps
+  const aspectRatio = paperSize === 'online' ? '35 / 45' : '1 / 1.414'; // Set 'online' to match passport photo aspect ratio
+  const gapSize = '1px';
+  const gridPadding = '4px';
+  const photoSize = '20px';
+  const labelHeight = paperSize === 'online' ? '40px' : '22px'; // Add more space for 'online' to fit the title and checkmark
 
   return (
     <div
       className="w-full bg-white overflow-hidden rounded-md"
       style={{
         aspectRatio,
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: gapSize,
-        padding: gapSize,
+        padding: gridPadding,
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
       }}
     >
-      {Array.from({ length: cols * rows }).map((_, index) => {
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-        const isFirstRow = row === 0;
-        const isLastRow = row === rows - 1;
-        const isFirstCol = col === 0;
-        const isLastCol = col === cols - 1;
-        
-        return (
-          <div 
-            key={index} 
-            style={{
-              aspectRatio: '35 / 45',
-              overflow: 'hidden',
-              borderRadius: `${isFirstRow && isFirstCol ? '4px' : '0'} ${isFirstRow && isLastCol ? '4px' : '0'} ${isLastRow && isLastCol ? '4px' : '0'} ${isLastRow && isFirstCol ? '4px' : '0'}`,
-            }}
-          >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: paperSize === 'online' ? '1fr' : `repeat(${cols}, ${photoSize})`,
+          gridTemplateRows: paperSize === 'online' ? '1fr' : `repeat(${rows}, ${photoSize})`,
+          gap: gapSize,
+          justifyContent: 'center',
+          alignContent: 'center',
+          flexGrow: 1,
+          height: `calc(100% - ${labelHeight})`,
+        }}
+      >
+        {paperSize === 'online' ? (
+          <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             <img
               src={photoUrl}
               alt="Visa photo"
               className="w-full h-full object-cover"
             />
           </div>
-        );
-      })}
+        ) : (
+          Array.from({ length: cols * rows }).map((_, index) => (
+            <div
+              key={index}
+              style={{
+                width: photoSize,
+                height: photoSize,
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src={photoUrl}
+                alt="Visa photo"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))
+        )}
+      </div>
+      <div
+        className="flex items-center justify-center mt-1 px-2"
+        style={{
+          fontSize: '14px',
+          padding: '4px 0',
+          height: labelHeight,
+        }}
+      >
+        <span className="text-[#0F172A]">{paperSize === 'online' ? 'Online' : paperSize}</span>
+        {isSelected && (
+          <Check size={16} className="ml-1 text-primary" />
+        )}
+      </div>
     </div>
   );
 };
