@@ -15,6 +15,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ photoUrl, paperSize, grid, 
   const gridPadding = '4px';
   const photoSize = '20px';
   const labelHeight = paperSize === 'online' ? '40px' : '22px'; // Add more space for 'online' to fit the title and checkmark
+  const borderRadius = '2px'; // Define the border radius
 
   return (
     <div
@@ -37,33 +38,51 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ photoUrl, paperSize, grid, 
           alignContent: 'center',
           flexGrow: 1,
           height: `calc(100% - ${labelHeight})`,
+          paddingTop: paperSize === 'online' ? '0' : '4px', // Add padding to the top for A4, A5, and A6
         }}
       >
         {paperSize === 'online' ? (
-          <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius }}>
             <img
               src={photoUrl}
               alt="Visa photo"
               className="w-full h-full object-cover"
+              style={{ borderRadius }}
             />
           </div>
         ) : (
-          Array.from({ length: cols * rows }).map((_, index) => (
-            <div
-              key={index}
-              style={{
-                width: photoSize,
-                height: photoSize,
-                overflow: 'hidden',
-              }}
-            >
-              <img
-                src={photoUrl}
-                alt="Visa photo"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ))
+          Array.from({ length: cols * rows }).map((_, index) => {
+            const isFirstRow = index < cols;
+            const isLastRow = index >= cols * (rows - 1);
+            const isFirstCol = index % cols === 0;
+            const isLastCol = index % cols === cols - 1;
+
+            const borderRadiusStyle = {
+              borderTopLeftRadius: isFirstRow && isFirstCol ? borderRadius : '0',
+              borderTopRightRadius: isFirstRow && isLastCol ? borderRadius : '0',
+              borderBottomLeftRadius: isLastRow && isFirstCol ? borderRadius : '0',
+              borderBottomRightRadius: isLastRow && isLastCol ? borderRadius : '0',
+            };
+
+            return (
+              <div
+                key={index}
+                style={{
+                  width: photoSize,
+                  height: photoSize,
+                  overflow: 'hidden',
+                  ...borderRadiusStyle,
+                }}
+              >
+                <img
+                  src={photoUrl}
+                  alt="Visa photo"
+                  className="w-full h-full object-cover"
+                  style={{ borderRadius: 'inherit' }}
+                />
+              </div>
+            );
+          })
         )}
       </div>
       <div
