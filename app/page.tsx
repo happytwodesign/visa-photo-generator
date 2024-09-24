@@ -15,6 +15,52 @@ import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { removeBackground } from './lib/backgroundRemoval';
+import heic2any from 'heic2any';
+
+const convertToJPEG = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], 'converted.jpg', { type: 'image/jpeg' }));
+          } else {
+            reject(new Error('Failed to convert image'));
+          }
+        }, 'image/jpeg', 0.95);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+const convertHeicToJpeg = async (file: File): Promise<File> => {
+  if (file.type === 'image/heic' || file.type === 'image/heif') {
+    try {
+      const jpegBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9
+      });
+      return new File([Array.isArray(jpegBlob) ? jpegBlob[0] : jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+    } catch (error) {
+      console.error('Error converting HEIC to JPEG:', error);
+      throw new Error('Failed to convert HEIC image to JPEG');
+    }
+  }
+  return file;
+};
 
 export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
@@ -33,6 +79,9 @@ export default function Home() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [removeBg, setRemoveBg] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [backgroundRemovedPhoto, setBackgroundRemovedPhoto] = useState<string | null>(null);
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
+  const [isCorrectingBackground, setIsCorrectingBackground] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -46,13 +95,20 @@ export default function Home() {
     localStorage.setItem('removeBg', JSON.stringify(checked));
   };
 
-  const handlePhotoUpload = (file: File) => {
-    setUploadedPhoto(file);
-    setUploadedPhotoUrl(URL.createObjectURL(file));
-    setError(null);
-    setProcessedPhoto(null);
-    setShowUploadMessage(false);
-    setGenerateError(null); // Clear the generate error message
+  const handlePhotoUpload = async (file: File) => {
+    try {
+      let processedFile = await convertHeicToJpeg(file);
+      processedFile = await convertToJPEG(processedFile);
+      setUploadedPhoto(processedFile);
+      setUploadedPhotoUrl(URL.createObjectURL(processedFile));
+      setError(null);
+      setProcessedPhoto(null);
+      setShowUploadMessage(false);
+      setGenerateError(null);
+    } catch (error) {
+      console.error('Error processing photo:', error);
+      setError('Failed to process the uploaded photo. Please try a different image.');
+    }
   };
 
   const checkImageDimensions = (url: string) => {
@@ -100,9 +156,28 @@ export default function Home() {
 
       // Check dimensions of the processed photo
       checkImageDimensions(response.photoUrl);
+
+      // Apply background removal if requested
+      if (removeBg) {
+        const backgroundRemovedBlob = await removeBackground(uploadedPhoto);
+        const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
+        setCurrentPhotoUrl(backgroundRemovedUrl);
+        setProcessedPhoto(backgroundRemovedUrl);
+        console.log('Background removal completed:', backgroundRemovedUrl);
+      } else {
+        setCurrentPhotoUrl(response.photoUrl);
+      }
     } catch (error) {
       console.error('Error processing photo:', error);
-      setGenerateError(`Failed to process photo. Error: ${error instanceof Error ? error.message : String(error)}`);
+      let errorMessage = 'Failed to process photo. ';
+      if (error instanceof Error) {
+        errorMessage += error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        errorMessage += JSON.stringify(error);
+      } else {
+        errorMessage += String(error);
+      }
+      setGenerateError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -136,6 +211,28 @@ export default function Home() {
     'No glare on glasses, or preferably, no glasses': true
   };
 
+  const handleBackgroundCorrection = async () => {
+    if (!uploadedPhoto || !processedPhoto) {
+      setDownloadError('No photo available for background correction.');
+      return;
+    }
+
+    setDownloadError(null);
+    setIsCorrectingBackground(true);
+    try {
+      const backgroundRemovedBlob = await removeBackground(uploadedPhoto);
+      const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
+      setCurrentPhotoUrl(backgroundRemovedUrl);
+      setProcessedPhoto(backgroundRemovedUrl);
+      console.log('Background removal completed, new URL:', backgroundRemovedUrl);
+    } catch (error) {
+      console.error('Error in background correction:', error);
+      setDownloadError('Failed to correct background. Please try again.');
+    } finally {
+      setIsCorrectingBackground(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!selectedSize) {
       setDownloadError('Please select an option to download.');
@@ -144,31 +241,36 @@ export default function Home() {
 
     setDownloadError(null);
 
-    if (selectedSize === 'online' && processedPhoto) {
+    if (!currentPhotoUrl) {
+      setDownloadError('No photo available for download.');
+      return;
+    }
+
+    if (selectedSize === 'online') {
       const link = document.createElement('a');
-      link.href = processedPhoto;
+      link.href = currentPhotoUrl;
       link.download = 'schengen_visa_photo_online.png';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }
-
-    const paperSizes = ['A4', 'A5', 'A6'];
-    if (paperSizes.includes(selectedSize) && processedPhoto) {
-      try {
-        const templates = await generateTemplates(processedPhoto);
-        const blob = templates[paperSizes.indexOf(selectedSize)];
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `schengen_visa_photo_${selectedSize.toLowerCase()}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('Error generating templates:', error);
-        setError('Failed to generate templates for download.');
+    } else {
+      const paperSizes = ['A4', 'A5', 'A6'];
+      if (paperSizes.includes(selectedSize)) {
+        try {
+          const templates = await generateTemplates(currentPhotoUrl);
+          const blob = templates[paperSizes.indexOf(selectedSize)];
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `schengen_visa_photo_${selectedSize.toLowerCase()}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Error generating templates:', error);
+          setDownloadError('Failed to generate templates for download.');
+        }
       }
     }
   };
@@ -179,6 +281,13 @@ export default function Home() {
   }, [selectedSize]);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // Update currentPhotoUrl when processedPhoto changes
+  useEffect(() => {
+    if (processedPhoto) {
+      setCurrentPhotoUrl(processedPhoto);
+    }
+  }, [processedPhoto]);
 
   return (
     <div className={`${!isMobile ? 'flex flex-col min-h-screen' : ''}`}>
@@ -202,7 +311,7 @@ export default function Home() {
                         onDelete={handleDeletePhoto}
                       />
                     ) : (
-                      <PhotoPreview photoUrl={processedPhoto} />
+                      <PhotoPreview photoUrl={currentPhotoUrl || ''} />
                     )}
                   </div>
                   {!isMobile && (
@@ -250,8 +359,9 @@ export default function Home() {
                   <div>
                     {isMobile && processedPhoto && (
                       <div className="mb-4">
+                        <h4 className="text-lg font-semibold mb-2">Click to download</h4>
                         <DownloadOptions 
-                          photoUrl={processedPhoto} 
+                          photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={onlineSubmissionUrl || ''}
                           onSelectionChange={setSelectedSize}
                         />
@@ -266,22 +376,12 @@ export default function Home() {
 
                     {!isMobile && processedPhoto && (
                       <div className="mt-4">
+                        <h4 className="text-lg font-semibold mb-2">Click to download</h4>
                         <DownloadOptions 
-                          photoUrl={processedPhoto} 
+                          photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={onlineSubmissionUrl || ''}
                           onSelectionChange={setSelectedSize}
                         />
-                      </div>
-                    )}
-
-                    {processedPhoto && (
-                      <div className="flex items-center space-x-2 mt-4 mb-4">
-                        <Switch
-                          id="remove-bg"
-                          checked={removeBg}
-                          onCheckedChange={handleRemoveBgChange}
-                        />
-                        <Label htmlFor="remove-bg">Remove Background</Label>
                       </div>
                     )}
                   </div>
@@ -290,10 +390,11 @@ export default function Home() {
                   {processedPhoto && !isMobile && (
                     <div className="mt-4 flex flex-col items-end">
                       <Button 
-                        onClick={handleDownload} 
+                        onClick={handleBackgroundCorrection} 
                         className="px-6"
+                        disabled={isCorrectingBackground}
                       >
-                        Download Selected
+                        {isCorrectingBackground ? 'Processing...' : 'Correct background $2.99'}
                       </Button>
                       <div className="h-6">
                         {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
@@ -339,10 +440,11 @@ export default function Home() {
                     Retake
                   </Button>
                   <Button 
-                    onClick={handleDownload} 
+                    onClick={handleBackgroundCorrection} 
                     className="w-auto px-6"
+                    disabled={isCorrectingBackground}
                   >
-                    Download Selected
+                    {isCorrectingBackground ? 'Processing...' : 'Correct background $2.99'}
                   </Button>
                 </div>
                 {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
@@ -354,3 +456,4 @@ export default function Home() {
     </div>
   );
 }
+

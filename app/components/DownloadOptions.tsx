@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PrintPreview from './PrintPreview';
-import { Checkbox } from './ui/checkbox';
-import { Label } from './ui/label';
+import { generateTemplates } from '../lib/templateGenerator';
+import { Label } from './ui/label'; // Correct import statement for Label
 
 interface DownloadOptionsProps {
   photoUrl: string;
@@ -17,14 +17,50 @@ const paperSizeConfig = {
 };
 
 const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmissionUrl, onSelectionChange }) => {
-  const [selectedSize, setSelectedSize] = useState<'online' | 'A4' | 'A5' | 'A6' | null>('online');
+  console.log('DownloadOptions received photoUrl:', photoUrl);
+  
+  const [selectedSize, setSelectedSize] = useState<'online' | 'A4' | 'A5' | 'A6' | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [hoveredSize, setHoveredSize] = useState<'online' | 'A4' | 'A5' | 'A6' | null>(null);
 
   useEffect(() => {
     onSelectionChange(selectedSize);
   }, [selectedSize, onSelectionChange]);
 
-  const handleChange = (size: 'online' | 'A4' | 'A5' | 'A6') => {
-    setSelectedSize(prevSize => prevSize === size ? null : size);
+  const handleChange = async (size: 'online' | 'A4' | 'A5' | 'A6') => {
+    setSelectedSize(size);
+    setIsDownloading(true);
+
+    if (size === 'online') {
+      const link = document.createElement('a');
+      link.href = photoUrl;
+      link.download = 'schengen_visa_photo_online.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      try {
+        const templates = await generateTemplates(photoUrl);
+        const paperSizes = ['A4', 'A5', 'A6'];
+        const blob = templates[paperSizes.indexOf(size)];
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `schengen_visa_photo_${size.toLowerCase()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Error generating templates:', error);
+      }
+    }
+
+    // Provide feedback by highlighting the card
+    setTimeout(() => {
+      setSelectedSize(null);
+      setIsDownloading(false);
+    }, 2000); // Remove highlight after 2 seconds
   };
 
   return (
@@ -41,23 +77,21 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmi
               flexDirection: 'column',
               justifyContent: 'space-between',
             }}
+            onMouseEnter={() => setHoveredSize(size)}
+            onMouseLeave={() => setHoveredSize(null)}
+            onClick={() => handleChange(size)} // Handle click to start download
           >
-            <Checkbox
-              id={`size-${size}`}
-              checked={selectedSize === size}
-              onCheckedChange={() => handleChange(size)}
-              className="sr-only"
-            />
             <Label
               htmlFor={`size-${size}`}
-              className="block border rounded-md cursor-pointer border-gray-300 hover:border-primary w-full h-full"
+              className="block rounded-md cursor-pointer w-full h-full"
             >
               <div className="print-preview-wrapper" style={{ flexGrow: 1 }}>
                 <PrintPreview 
                   photoUrl={size === 'online' ? onlineSubmissionUrl : photoUrl} 
                   paperSize={size}
                   grid={paperSizeConfig[size].grid}
-                  isSelected={selectedSize === size} // Pass the isSelected prop
+                  isDownloading={isDownloading && selectedSize === size}
+                  isHovered={hoveredSize === size}
                 />
               </div>
             </Label>

@@ -33,3 +33,19 @@ export async function removeBackground(imageFile: File): Promise<Blob> {
     throw new Error('Failed to remove background');
   }
 }
+
+export async function initiateBackgroundRemoval(photoUrl: string): Promise<string> {
+  try {
+    // Here you would typically make an API call to your background removal service
+    // For this example, we'll simulate an API call with a delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Simulate a successful response
+    const processedPhotoUrl = `${photoUrl}?bg_removed=true`;
+
+    return processedPhotoUrl;
+  } catch (error) {
+    console.error('Error in background removal:', error);
+    throw new Error('Background removal failed');
+  }
+}

@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 
-export async function generateTemplates(photoUrl: string): Promise<Blob[]> {
+export async function generateTemplates(photoUrl: string) {
+  console.log('Generating templates with photo URL:', photoUrl);
   const templates: Blob[] = [];
 
   const createTemplate = (width: number, height: number, photoWidth: number, photoHeight: number) => {
