@@ -293,7 +293,7 @@ export default function Home() {
     <div className={`${!isMobile ? 'flex flex-col min-h-screen' : ''}`}>
       <div className="max-w-5xl mx-auto text-[#0F172A] w-full flex flex-col flex-grow">
         <div className={`${!isMobile ? 'flex-grow flex items-center' : ''}`}>
-          <div className={`${isMobile ? 'w-[80%] mx-auto' : 'w-full'}`}>
+          <div className={`${isMobile ? 'w-full px-4' : 'w-full'}`}>
             <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1' : 'mb-2'}`}>Schengen Visa</h1>
             <p className={`text-base md:text-lg ${isMobile ? 'mb-2' : 'mb-4 md:mb-8'}`}>
               Get your perfect Schengen visa photo in just a few clicks.
@@ -358,8 +358,8 @@ export default function Home() {
                 <div className="flex-grow flex flex-col justify-between">
                   <div>
                     {isMobile && processedPhoto && (
-                      <div className="mb-4">
-                        <h4 className="text-lg font-semibold mb-2">Click to download</h4>
+                      <div className="mb-6 w-full max-w-[350px] mx-auto">
+                        <h4 className="text-lg font-semibold mb-2 text-center">Click to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={onlineSubmissionUrl || ''}
@@ -369,10 +369,12 @@ export default function Home() {
                     )}
 
                     {/* Requirements list */}
-                    <RequirementsList 
-                      requirements={processedPhoto ? allRequirementsMet : undefined} 
-                      showChecks={!!processedPhoto}
-                    />
+                    <div className={`${isMobile ? 'mb-32' : ''}`}>
+                      <RequirementsList 
+                        requirements={processedPhoto ? allRequirementsMet : undefined} 
+                        showChecks={!!processedPhoto}
+                      />
+                    </div>
 
                     {!isMobile && processedPhoto && (
                       <div className="mt-4">
