@@ -14,7 +14,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ photoUrl, paperSize, grid, 
   const gapSize = '1px';
   const gridPadding = '4px';
   const photoSize = '20px';
-  const labelHeight = paperSize === 'online' ? '40px' : '22px'; // Add more space for 'online' to fit the title and checkmark
+  const labelHeight = paperSize === 'online' ? '40px' : paperSize === 'A4' || paperSize === 'A5' ? '28px' : '22px'; // Adjust label height for A4 and A5
   const borderRadius = '2px'; // Define the border radius
 
   return (

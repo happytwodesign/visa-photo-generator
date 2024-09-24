@@ -274,7 +274,7 @@ export default function Home() {
                       </div>
                     )}
 
-                    {!processedPhoto && !isMobile && (
+                    {processedPhoto && (
                       <div className="flex items-center space-x-2 mt-4 mb-4">
                         <Switch
                           id="remove-bg"
