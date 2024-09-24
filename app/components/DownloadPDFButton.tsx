@@ -1,6 +1,13 @@
 import React from 'react';
 import jsPDF from 'jspdf';
-import { DownloadOptionsProps } from './DownloadOptions';
+import DownloadOptionsProps from './DownloadOptions';
+
+// Define DownloadOptionsProps as a type or interface
+interface DownloadOptionsProps {
+  photoUrl: string;
+  onlineSubmissionUrl: string;
+  onSelectionChange: (selection: string) => void;
+}
 
 const DownloadPDFButton: React.FC<DownloadOptionsProps> = ({ photoUrl, onlineSubmissionUrl, onSelectionChange }) => {
   const generatePDF = () => {
