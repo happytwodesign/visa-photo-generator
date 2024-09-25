@@ -158,28 +158,34 @@ export default function Home() {
         photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
       };
       console.log('Processing config:', processingConfig);
-      const response = await processPhoto(uploadedPhoto, processingConfig);
-      console.log('Full API response:', response);
-      console.log('Processed photo URL:', response.photoUrl);
-      console.log('Online submission URL:', response.onlineSubmissionUrl);
-      setProcessedPhoto(response.photoUrl);
-      setOnlineSubmissionUrl(response.onlineSubmissionUrl);
-      setRequirements(response.requirements);
+
+      const formData = new FormData();
+      formData.append('photo', uploadedPhoto);
+      formData.append('config', JSON.stringify(processingConfig));
+
+      const response = await fetch('/api/process-photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data || !data.photoUrl) {
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('Full API response:', data);
+      setProcessedPhoto(data.photoUrl);
+      setOnlineSubmissionUrl(data.onlineSubmissionUrl);
+      setRequirements(data.requirements);
       setError(null);
 
-      // Check dimensions of the processed photo
-      checkImageDimensions(response.photoUrl);
-
-      // Apply background removal if requested
-      if (removeBg) {
-        const backgroundRemovedBlob = await removeBackground(uploadedPhoto);
-        const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
-        setCurrentPhotoUrl(backgroundRemovedUrl);
-        setProcessedPhoto(backgroundRemovedUrl);
-        console.log('Background removal completed:', backgroundRemovedUrl);
-      } else {
-        setCurrentPhotoUrl(response.photoUrl);
-      }
+      checkImageDimensions(data.photoUrl);
+      setCurrentPhotoUrl(data.photoUrl);
     } catch (error) {
       console.error('Error processing photo:', error);
       let errorMessage = 'Failed to process photo. ';
@@ -191,6 +197,10 @@ export default function Home() {
         errorMessage += String(error);
       }
       setGenerateError(errorMessage);
+      
+      setProcessedPhoto(null);
+      setOnlineSubmissionUrl(null);
+      setRequirements({});
     } finally {
       setIsProcessing(false);
     }
@@ -215,7 +225,7 @@ export default function Home() {
     setOnlineSubmissionUrl(null);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
-    setRequirements(null);
+    setRequirements({}); // Change this line from null to an empty object
     // Reset any other states that need to be cleared when retaking the photo
   };
 
@@ -246,11 +256,14 @@ export default function Home() {
       const response = await fetch(processedPhoto);
       const blob = await response.blob();
 
-      const backgroundRemovedBlob = await removeBackground(blob);
+      // Create a File object from the Blob
+      const file = new File([blob], 'processed_photo.png', { type: 'image/png' });
+
+      const backgroundRemovedBlob = await removeBackground(file);
       const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
       setCurrentPhotoUrl(backgroundRemovedUrl);
       setProcessedPhoto(backgroundRemovedUrl);
-      setOnlineSubmissionUrl(backgroundRemovedUrl); // Add this line
+      setOnlineSubmissionUrl(backgroundRemovedUrl);
       setIsBackgroundRemoved(true);
       console.log('Background removal completed, new URL:', backgroundRemovedUrl);
     } catch (error) {
@@ -261,11 +274,7 @@ export default function Home() {
     }
   };
 
-  const handleEmailPhotos = () => {
-    setShowEmailModal(true);
-  };
-
-  const handleSendEmail = async (email: string) => {
+  const handleEmailPhotos = async () => {
     if (!currentPhotoUrl) {
       throw new Error('No photo available to send');
     }
@@ -277,13 +286,20 @@ export default function Home() {
         const blob = templates[index];
         const formData = new FormData();
         formData.append('file', blob, `schengen_visa_photo_${size.toLowerCase()}.pdf`);
-        // Here you would typically upload the file to your server or a file hosting service
-        // and get a downloadable URL in return. For this example, we'll use a placeholder URL.
-        return `https://example.com/download/${size.toLowerCase()}.pdf`;
+        const response = await fetch('/api/upload-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${size} PDF`);
+        }
+        const data = await response.json();
+        return data.url;
       })
     );
 
-    await sendEmailWithPhotos(email, currentPhotoUrl, pdfUrls);
+    setShowEmailModal(true);
+    // The actual email sending will be handled in the EmailPhotosModal component
   };
 
   const handleDownload = async () => {
@@ -343,11 +359,11 @@ export default function Home() {
   }, [processedPhoto]);
 
   return (
-    <div className={`${!isMobile ? 'flex flex-col min-h-screen' : ''}`}>
+    <div className={!isMobile ? 'flex flex-col min-h-screen' : ''}>
       <div className="max-w-5xl mx-auto text-[#0F172A] w-full flex flex-col flex-grow">
-        <div className={`${!isMobile ? 'flex-grow flex items-center' : ''}`}>
-          <div className={`${isMobile ? 'w-full px-4' : 'w-full'}`}>
-            <div className={`${isMobile ? 'max-w-[350px] mx-auto' : ''}`}>
+        <div className={!isMobile ? 'flex-grow flex items-center' : ''}>
+          <div className={isMobile ? 'w-full px-4' : 'w-full'}>
+            <div className={isMobile ? 'max-w-[350px] mx-auto' : ''}>
               <h1 className={`text-2xl md:text-4xl font-bold ${isMobile ? 'mb-1 text-left' : 'mb-2'}`}>Schengen Visa</h1>
               <p className={`text-base md:text-lg ${isMobile ? 'mb-2 text-left' : 'mb-4 md:mb-8'}`}>
                 Get your perfect Schengen visa photo in just a few clicks.
@@ -468,20 +484,13 @@ export default function Home() {
         {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
             {!processedPhoto ? (
-              <div className="flex flex-col">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="remove-bg-mobile"
-                      checked={removeBg}
-                      onCheckedChange={handleRemoveBgChange}
-                    />
-                    <Label htmlFor="remove-bg-mobile">Remove Background</Label>
-                  </div>
+              <div className="flex flex-col items-center w-full max-w-[350px] mx-auto">
+                <div className="w-full">
                   <GenerateButton 
                     onClick={handleGenerate} 
                     isProcessing={isProcessing} 
                     showMessage={false}
+                    className="w-full"
                   />
                 </div>
                 {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
