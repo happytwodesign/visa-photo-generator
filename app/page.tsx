@@ -16,6 +16,8 @@ import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
+import { EmailPhotosModal } from './components/EmailPhotosModal';
+import { sendEmailWithPhotos } from './lib/emailService';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -89,6 +91,7 @@ export default function Home() {
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const [isCorrectingBackground, setIsCorrectingBackground] = useState(false);
   const [isBackgroundRemoved, setIsBackgroundRemoved] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -247,8 +250,28 @@ export default function Home() {
   };
 
   const handleEmailPhotos = () => {
-    // Implement email functionality here
-    console.log('Email photos functionality to be implemented');
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async (email: string) => {
+    if (!currentPhotoUrl) {
+      throw new Error('No photo available to send');
+    }
+
+    const paperSizes = ['A4', 'A5', 'A6'];
+    const templates = await generateTemplates(currentPhotoUrl);
+    const pdfUrls = await Promise.all(
+      paperSizes.map(async (size, index) => {
+        const blob = templates[index];
+        const formData = new FormData();
+        formData.append('file', blob, `schengen_visa_photo_${size.toLowerCase()}.pdf`);
+        // Here you would typically upload the file to your server or a file hosting service
+        // and get a downloadable URL in return. For this example, we'll use a placeholder URL.
+        return `https://example.com/download/${size.toLowerCase()}.pdf`;
+      })
+    );
+
+    await sendEmailWithPhotos(email, currentPhotoUrl, pdfUrls);
   };
 
   const handleDownload = async () => {
@@ -477,6 +500,13 @@ export default function Home() {
           </div>
         )}
       </div>
+      
+      {showEmailModal && (
+        <EmailPhotosModal
+          onClose={() => setShowEmailModal(false)}
+          onSend={handleSendEmail}
+        />
+      )}
     </div>
   );
 }
