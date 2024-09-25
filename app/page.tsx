@@ -18,6 +18,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
 import { EmailPhotosModal } from './components/EmailPhotosModal';
 import { sendEmailWithPhotos } from './lib/emailService';
+import { BackgroundChangeButton } from './components/BackgroundChangeButton';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -92,6 +93,8 @@ export default function Home() {
   const [isCorrectingBackground, setIsCorrectingBackground] = useState(false);
   const [isBackgroundRemoved, setIsBackgroundRemoved] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [backgroundRemoved, setBackgroundRemoved] = useState(false);
+  const [backgroundChangeInitiated, setBackgroundChangeInitiated] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -200,12 +203,20 @@ export default function Home() {
     setOnlineSubmissionUrl(null);
     setRequirements({});
     setError(null);
+    setBackgroundRemoved(false);
+    setBackgroundChangeInitiated(false);
   };
 
   const handleDeletePhoto = () => {
     setUploadedPhoto(null);
     setUploadedPhotoUrl(null);
-    setShowUploadMessage(false);
+    setProcessedPhoto(null);
+    setCurrentPhotoUrl(null);
+    setOnlineSubmissionUrl(null);
+    setBackgroundRemoved(false);
+    setBackgroundChangeInitiated(false);
+    setRequirements(null);
+    // Reset any other states that need to be cleared when retaking the photo
   };
 
   const allRequirementsMet = {
@@ -221,9 +232,10 @@ export default function Home() {
     'No glare on glasses, or preferably, no glasses': true
   };
 
-  const handleBackgroundCorrection = async () => {
+  const handleBackgroundRemoval = async () => {
+    setBackgroundChangeInitiated(true);
     if (!processedPhoto) {
-      setDownloadError('No processed photo available for background correction.');
+      setDownloadError('No processed photo available for background removal.');
       return;
     }
 
@@ -242,8 +254,8 @@ export default function Home() {
       setIsBackgroundRemoved(true);
       console.log('Background removal completed, new URL:', backgroundRemovedUrl);
     } catch (error) {
-      console.error('Error in background correction:', error);
-      setDownloadError('Failed to correct background. Please try again.');
+      console.error('Error in background removal:', error);
+      setDownloadError('Failed to remove background. Please try again.');
     } finally {
       setIsCorrectingBackground(false);
     }
@@ -434,14 +446,14 @@ export default function Home() {
                   {/* Download button - always at the bottom for non-mobile */}
                   {processedPhoto && !isMobile && (
                     <div className="mt-4 flex flex-col items-end">
-                      <Button 
-                        onClick={isBackgroundRemoved ? handleEmailPhotos : handleBackgroundCorrection} 
-                        className="px-6"
-                        disabled={isCorrectingBackground}
-                      >
-                        {isCorrectingBackground ? 'Processing...' : 
-                         isBackgroundRemoved ? 'Email photos' : 'Swap Background for $2.99'}
-                      </Button>
+                      {!backgroundRemoved && !backgroundChangeInitiated && (
+                        <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing} />
+                      )}
+                      {backgroundChangeInitiated && (
+                        <Button onClick={handleEmailPhotos} className="px-6">
+                          Email photos
+                        </Button>
+                      )}
                       <div className="h-6">
                         {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
                       </div>
@@ -485,14 +497,14 @@ export default function Home() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retake
                   </Button>
-                  <Button 
-                    onClick={isBackgroundRemoved ? handleEmailPhotos : handleBackgroundCorrection} 
-                    className="w-auto px-6"
-                    disabled={isCorrectingBackground}
-                  >
-                    {isCorrectingBackground ? 'Processing...' : 
-                     isBackgroundRemoved ? 'Email photos' : 'Swap Background for $2.99'}
-                  </Button>
+                  {!backgroundRemoved && !backgroundChangeInitiated && (
+                    <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing} />
+                  )}
+                  {backgroundChangeInitiated && (
+                    <Button onClick={handleEmailPhotos} className="w-auto px-6">
+                      Email photos
+                    </Button>
+                  )}
                 </div>
                 {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
               </div>
