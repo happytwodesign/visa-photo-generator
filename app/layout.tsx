@@ -1,5 +1,5 @@
 import { Inter as FontSans } from "next/font/google"
-import { cn } from "@/lib/utils"
+import { cn } from "./lib/utils"  // Updated import path
 import "./globals.css"
 
 const fontSans = FontSans({

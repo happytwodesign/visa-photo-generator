@@ -5,9 +5,10 @@ import { Input } from './ui/input';
 interface EmailPhotosModalProps {
   onClose: () => void;
   onSend: (email: string) => void;
+  isLoading: boolean;
 }
 
-export function EmailPhotosModal({ onClose, onSend }: EmailPhotosModalProps) {
+export function EmailPhotosModal({ onClose, onSend, isLoading }: EmailPhotosModalProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
 
@@ -28,7 +29,6 @@ export function EmailPhotosModal({ onClose, onSend }: EmailPhotosModalProps) {
       return;
     }
     onSend(email);
-    // Reset email and error after sending
     setEmail('');
     setError('');
   };
@@ -46,10 +46,12 @@ export function EmailPhotosModal({ onClose, onSend }: EmailPhotosModalProps) {
         />
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <div className="flex justify-end">
-          <Button onClick={onClose} variant="outline" className="mr-2">
+          <Button onClick={onClose} variant="outline" className="mr-2" disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleSend}>Send</Button>
+          <Button onClick={handleSend} disabled={isLoading}>
+            {isLoading ? 'Sending...' : 'Send'}
+          </Button>
         </div>
       </div>
     </div>

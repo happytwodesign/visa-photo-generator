@@ -55,9 +55,12 @@ export async function processPhoto(inputBuffer: Buffer, config: ProcessingConfig
   }).toBuffer();
 }
 
-// Keep the upscaleImage function for potential future use
+// If upscaleImage is not being used, you can remove it.
+// If you want to keep it for future use, implement it like this:
 export async function upscaleImage(inputBuffer: Buffer): Promise<Buffer> {
-  // ... (keep the existing upscaleImage function)
+  // Placeholder implementation
+  const image = sharp(inputBuffer);
+  return await image.resize({ width: 1000, height: 1000, fit: 'inside' }).toBuffer();
 }
 
 // Add other server-side processing functions here

@@ -98,6 +98,7 @@ export default function Home() {
   const [backgroundChangeInitiated, setBackgroundChangeInitiated] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
+  const [isEmailSending, setIsEmailSending] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -148,7 +149,7 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!uploadedPhoto) {
-      setGenerateError('Please upload a photo first.');
+      setGenerateError('Please select a photo before generating.');
       return;
     }
 
@@ -177,13 +178,18 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        if (response.status === 500 && errorText.includes("extract_area: bad extract area")) {
+          throw new Error('The uploaded image could not be processed. Please try a different photo.');
+        } else {
+          throw new Error(`Server error: ${response.status}. ${errorText}`);
+        }
       }
 
       const data = await response.json();
       
       if (!data || !data.photoUrl) {
-        throw new Error('Invalid response from server');
+        throw new Error('The server response was invalid. Please try again.');
       }
       
       console.log('Full API response:', data);
@@ -196,14 +202,7 @@ export default function Home() {
       setCurrentPhotoUrl(data.photoUrl);
     } catch (error) {
       console.error('Error processing photo:', error);
-      let errorMessage = 'Failed to process photo. ';
-      if (error instanceof Error) {
-        errorMessage += error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        errorMessage += JSON.stringify(error);
-      } else {
-        errorMessage += String(error);
-      }
+      let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
       setGenerateError(errorMessage);
       
       setProcessedPhoto(null);
@@ -232,6 +231,7 @@ export default function Home() {
     setShowEmailModal(false);
     setEmailSent(false);
     setSentEmail('');
+    setIsEmailSending(false);
   };
 
   const handleDeletePhoto = () => {
@@ -267,12 +267,14 @@ export default function Home() {
     setBackgroundChangeInitiated(true);
     if (!processedPhoto && !currentPhotoUrl) {
       setDownloadError('No photo available for background removal.');
+      setBackgroundChangeInitiated(false); // Reset if there's no photo
       return;
     }
 
     const apiKey = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
     if (!apiKey) {
       setDownloadError('PhotoRoom API key is not set. Please check your environment variables.');
+      setBackgroundChangeInitiated(false); // Reset if there's no API key
       return;
     }
 
@@ -314,6 +316,9 @@ export default function Home() {
     } catch (error) {
       console.error('Error in background removal:', error);
       setDownloadError(`Failed to remove background: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setBackgroundChangeInitiated(false); // Reset if there's an error
+      setIsBackgroundRemoved(false);
+      setBackgroundRemoved(false);
     } finally {
       setIsCorrectingBackground(false);
     }
@@ -323,9 +328,12 @@ export default function Home() {
     setShowEmailModal(true);
     setEmailSent(false);
     setSentEmail('');
+    setError(null);
+    setIsEmailSending(false);
   };
 
   const handleSendEmail = async (email: string) => {
+    setIsEmailSending(true);
     try {
       if (!currentPhotoUrl) {
         throw new Error('No photo available to send');
@@ -353,13 +361,17 @@ export default function Home() {
       await sendEmailWithPhotos(email, currentPhotoUrl, pdfUrls);
       setEmailSent(true);
       setSentEmail(email);
-      setShowEmailModal(false);
     } catch (error) {
       console.error('Error sending email:', error);
-      // Show an error message to the user
-      alert(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Keep the modal open so the user can try again
-      setShowEmailModal(true);
+      setError(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsEmailSending(false);
+      setShowEmailModal(false);
+      // Add a small delay before resetting the email sent state
+      setTimeout(() => {
+        setEmailSent(false);
+        setSentEmail('');
+      }, 3000); // 3 seconds delay
     }
   };
 
@@ -523,16 +535,23 @@ export default function Home() {
                   {/* Download button - always at the bottom for non-mobile */}
                   {processedPhoto && !isMobile && (
                     <div className="mt-4 flex flex-col items-end">
-                      {!backgroundRemoved && !backgroundChangeInitiated && (
-                        <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing} />
-                      )}
-                      {backgroundChangeInitiated && (
-                        <Button onClick={handleEmailPhotos} className="px-6">
+                      {!isBackgroundRemoved ? (
+                        <BackgroundChangeButton 
+                          onClick={handleBackgroundRemoval} 
+                          disabled={isProcessing || isCorrectingBackground}
+                        />
+                      ) : (
+                        <Button 
+                          onClick={handleEmailPhotos} 
+                          className="px-6" 
+                          disabled={isEmailSending}
+                        >
                           Email photos
                         </Button>
                       )}
                       <div className="h-6">
                         {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                        {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
                       </div>
                     </div>
                   )}
@@ -544,19 +563,7 @@ export default function Home() {
         
         {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
-            {!processedPhoto ? (
-              <div className="flex flex-col items-center w-full max-w-[350px] mx-auto">
-                <div className="w-full">
-                  <GenerateButton 
-                    onClick={handleGenerate} 
-                    isProcessing={isProcessing} 
-                    showMessage={false}
-                    className="w-full"
-                  />
-                </div>
-                {generateError && <p className="text-gray-500 mt-2 text-center text-sm">{generateError}</p>}
-              </div>
-            ) : (
+            {processedPhoto ? (
               <div className="flex flex-col">
                 <div className="flex justify-between items-center">
                   <Button 
@@ -568,21 +575,37 @@ export default function Home() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retake
                   </Button>
-                  {!backgroundRemoved && !backgroundChangeInitiated && (
-                    <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing || isCorrectingBackground} />
-                  )}
-                  {(backgroundRemoved || backgroundChangeInitiated) && (
-                    <Button onClick={handleEmailPhotos} className="w-auto px-6" disabled={isProcessing || isCorrectingBackground}>
+                  {!isBackgroundRemoved ? (
+                    <BackgroundChangeButton 
+                      onClick={handleBackgroundRemoval} 
+                      disabled={isProcessing || isCorrectingBackground} 
+                    />
+                  ) : (
+                    <Button 
+                      onClick={handleEmailPhotos} 
+                      className="w-auto px-6" 
+                      disabled={isProcessing || isCorrectingBackground || isEmailSending}
+                    >
                       Email photos
                     </Button>
                   )}
                 </div>
-                {(downloadError || generateError) && (
-                  <p className="text-gray-500 mt-2 text-center text-sm">{downloadError || generateError}</p>
-                )}
+                {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
+                {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
                 {(isProcessing || isCorrectingBackground) && (
                   <p className="text-gray-500 mt-2 text-center text-sm">Processing...</p>
                 )}
+              </div>
+            ) : (
+              <div className="flex justify-center w-full max-w-[350px] mx-auto">
+                <div className="w-full max-w-[350px] mx-auto">
+                  <GenerateButton 
+                    onClick={handleGenerate} 
+                    isProcessing={isProcessing} 
+                    showMessage={false}
+                    className="w-full"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -591,15 +614,22 @@ export default function Home() {
       
       {showEmailModal && (
         <EmailPhotosModal
-          onClose={() => setShowEmailModal(false)}
+          onClose={() => {
+            setShowEmailModal(false);
+            setError(null);
+          }}
           onSend={handleSendEmail}
+          isLoading={isEmailSending}
         />
       )}
       
       {emailSent && (
         <SuccessModal
           email={sentEmail}
-          onClose={() => setEmailSent(false)}
+          onClose={() => {
+            setEmailSent(false);
+            setSentEmail('');
+          }}
         />
       )}
     </div>

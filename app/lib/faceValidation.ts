@@ -1,5 +1,5 @@
 import * as faceapi from 'face-api.js';
-import { canvas, faceDetectionNet, faceDetectionOptions, saveFile } from './commons';
+import { canvas, faceDetectionNet, faceDetectionOptions, saveFile, loadImage } from './commons';
 
 export async function validatePhoto(imageUrl: string) {
   try {
@@ -12,7 +12,7 @@ export async function validatePhoto(imageUrl: string) {
     await faceapi.nets.faceExpressionNet.loadFromUri('/models');
 
     // Fetch the image
-    const img = await canvas.loadImage(imageUrl);
+    const img = await loadImage(imageUrl);
     const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceExpressions();
 
     if (!detections.length) {
