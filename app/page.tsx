@@ -16,7 +16,6 @@ import { generateTemplates } from './lib/templateGenerator';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
-import heic2any from 'heic2any';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -46,8 +45,15 @@ const convertToJPEG = (file: File): Promise<File> => {
 };
 
 const convertHeicToJpeg = async (file: File): Promise<File> => {
+  if (typeof window === 'undefined') {
+    // We're on the server side, return the original file
+    return file;
+  }
+
   if (file.type === 'image/heic' || file.type === 'image/heif') {
     try {
+      // Dynamically import heic2any only on the client side
+      const heic2any = (await import('heic2any')).default;
       const jpegBlob = await heic2any({
         blob: file,
         toType: 'image/jpeg',
@@ -229,6 +235,7 @@ export default function Home() {
       const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
       setCurrentPhotoUrl(backgroundRemovedUrl);
       setProcessedPhoto(backgroundRemovedUrl);
+      setOnlineSubmissionUrl(backgroundRemovedUrl); // Add this line
       setIsBackgroundRemoved(true);
       console.log('Background removal completed, new URL:', backgroundRemovedUrl);
     } catch (error) {
@@ -375,7 +382,7 @@ export default function Home() {
                         <h4 className="text-lg font-semibold mb-2 text-left">Click to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
-                          onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                          onlineSubmissionUrl={currentPhotoUrl || onlineSubmissionUrl || ''}
                           onSelectionChange={setSelectedSize}
                         />
                       </div>
@@ -394,7 +401,7 @@ export default function Home() {
                         <h4 className="text-lg font-semibold mb-2">Click to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
-                          onlineSubmissionUrl={onlineSubmissionUrl || ''}
+                          onlineSubmissionUrl={currentPhotoUrl || onlineSubmissionUrl || ''}
                           onSelectionChange={setSelectedSize}
                         />
                       </div>
