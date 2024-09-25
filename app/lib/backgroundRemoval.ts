@@ -2,35 +2,39 @@ import axios from 'axios';
 
 const PHOTOROOM_API_KEY = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
 
-export async function removeBackground(imageFile: File): Promise<Blob> {
-  console.log('Starting background removal...');
-
+export async function removeBackground(file: File): Promise<Blob> {
   const formData = new FormData();
-  formData.append('image_file', imageFile);
-  formData.append('size', 'auto');
-  formData.append('format', 'png');
-  formData.append('channels', 'rgba');
-  formData.append('bg_color', '#F0F0F0'); // Light grey background
+  formData.append('image_file', file);
+
+  console.log('PhotoRoom API Key:', PHOTOROOM_API_KEY ? 'Set' : 'Not set');
 
   try {
-    console.log('Sending request to PhotoRoom API...');
     const response = await axios.post('https://sdk.photoroom.com/v1/segment', formData, {
       headers: {
-        'x-api-key': PHOTOROOM_API_KEY,
+        'x-api-key': PHOTOROOM_API_KEY || '',
         'Content-Type': 'multipart/form-data',
       },
       responseType: 'arraybuffer',
     });
 
-    console.log('Received response from PhotoRoom API');
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+
+    if (response.status !== 200) {
+      const errorText = new TextDecoder().decode(response.data);
+      console.error('PhotoRoom API error:', errorText);
+      throw new Error(`PhotoRoom API error: ${response.status} ${errorText}`);
+    }
+
     return new Blob([response.data], { type: 'image/png' });
   } catch (error) {
-    console.error('Background removal failed:', error);
-    if (axios.isAxiosError(error)) {
-      console.error('Response data:', error.response?.data);
-      console.error('Response status:', error.response?.status);
+    console.error('Error in removeBackground:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      const errorText = new TextDecoder().decode(error.response.data);
+      console.error('PhotoRoom API error details:', errorText);
+      throw new Error(`PhotoRoom API error: ${error.response.status} ${errorText}`);
     }
-    throw new Error('Failed to remove background');
+    throw error;
   }
 }
 

@@ -1,17 +1,7 @@
 export async function sendEmailWithPhotos(email: string, photoUrl: string, pdfUrls: string[]) {
-  // In a real application, you would typically make an API call to your backend here
-  // The backend would then use an email service to send the email with the photo and PDF links
-  
-  console.log(`Sending email to ${email}`);
-  console.log(`Photo URL: ${photoUrl}`);
-  console.log('PDF URLs:', pdfUrls);
-
-  // Simulating an API call
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // If the email sending fails, throw an error
-  // throw new Error('Failed to send email');
-
-  // If successful, you might want to return some confirmation
-  return { success: true, message: 'Email sent successfully' };
+  // Implement your email sending logic here
+  // This could involve calling an API endpoint that handles email sending
+  console.log(`Sending email to ${email} with photo ${photoUrl} and PDFs ${pdfUrls.join(', ')}`);
+  // For now, we'll just return a resolved promise
+  return Promise.resolve();
 }

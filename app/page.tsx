@@ -19,6 +19,7 @@ import { removeBackground } from './lib/backgroundRemoval';
 import { EmailPhotosModal } from './components/EmailPhotosModal';
 import { sendEmailWithPhotos } from './lib/emailService';
 import { BackgroundChangeButton } from './components/BackgroundChangeButton';
+import { SuccessModal } from './components/SuccessModal';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -95,6 +96,8 @@ export default function Home() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [backgroundRemoved, setBackgroundRemoved] = useState(false);
   const [backgroundChangeInitiated, setBackgroundChangeInitiated] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [sentEmail, setSentEmail] = useState('');
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -151,6 +154,11 @@ export default function Home() {
 
     setGenerateError(null);
     setIsProcessing(true);
+    setBackgroundRemoved(false);
+    setBackgroundChangeInitiated(false);
+    setIsBackgroundRemoved(false);
+    setDownloadError(null);
+    
     try {
       const processingConfig = {
         ...config,
@@ -215,6 +223,15 @@ export default function Home() {
     setError(null);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
+    setDownloadError(null);
+    setGenerateError(null);
+    setCurrentPhotoUrl(null);
+    setIsBackgroundRemoved(false);
+    setIsCorrectingBackground(false);
+    setIsProcessing(false);
+    setShowEmailModal(false);
+    setEmailSent(false);
+    setSentEmail('');
   };
 
   const handleDeletePhoto = () => {
@@ -225,8 +242,12 @@ export default function Home() {
     setOnlineSubmissionUrl(null);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
-    setRequirements({}); // Change this line from null to an empty object
-    // Reset any other states that need to be cleared when retaking the photo
+    setRequirements({});
+    setError(null);
+    setDownloadError(null); // Clear download error
+    setGenerateError(null); // Clear generate error
+    setIsBackgroundRemoved(false);
+    setIsCorrectingBackground(false);
   };
 
   const allRequirementsMet = {
@@ -244,62 +265,102 @@ export default function Home() {
 
   const handleBackgroundRemoval = async () => {
     setBackgroundChangeInitiated(true);
-    if (!processedPhoto) {
-      setDownloadError('No processed photo available for background removal.');
+    if (!processedPhoto && !currentPhotoUrl) {
+      setDownloadError('No photo available for background removal.');
+      return;
+    }
+
+    const apiKey = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
+    if (!apiKey) {
+      setDownloadError('PhotoRoom API key is not set. Please check your environment variables.');
       return;
     }
 
     setDownloadError(null);
     setIsCorrectingBackground(true);
     try {
-      // Convert the processedPhoto URL to a Blob
-      const response = await fetch(processedPhoto);
+      // Use currentPhotoUrl if available, otherwise use processedPhoto
+      const photoUrlToUse = currentPhotoUrl || processedPhoto;
+      if (!photoUrlToUse) {
+        throw new Error('No valid photo URL available');
+      }
+
+      console.log('Attempting to remove background from:', photoUrlToUse);
+
+      // Convert the photo URL to a Blob
+      const response = await fetch(photoUrlToUse);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch photo: ${response.statusText}`);
+      }
       const blob = await response.blob();
 
       // Create a File object from the Blob
-      const file = new File([blob], 'processed_photo.png', { type: 'image/png' });
+      const file = new File([blob], 'photo_to_process.png', { type: 'image/png' });
+
+      console.log('File created for background removal:', file);
 
       const backgroundRemovedBlob = await removeBackground(file);
+      console.log('Background removed, blob created:', backgroundRemovedBlob);
+
       const backgroundRemovedUrl = URL.createObjectURL(backgroundRemovedBlob);
+      console.log('Background removed URL created:', backgroundRemovedUrl);
+
       setCurrentPhotoUrl(backgroundRemovedUrl);
       setProcessedPhoto(backgroundRemovedUrl);
       setOnlineSubmissionUrl(backgroundRemovedUrl);
       setIsBackgroundRemoved(true);
+      setBackgroundRemoved(true);
       console.log('Background removal completed, new URL:', backgroundRemovedUrl);
     } catch (error) {
       console.error('Error in background removal:', error);
-      setDownloadError('Failed to remove background. Please try again.');
+      setDownloadError(`Failed to remove background: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsCorrectingBackground(false);
     }
   };
 
-  const handleEmailPhotos = async () => {
-    if (!currentPhotoUrl) {
-      throw new Error('No photo available to send');
-    }
-
-    const paperSizes = ['A4', 'A5', 'A6'];
-    const templates = await generateTemplates(currentPhotoUrl);
-    const pdfUrls = await Promise.all(
-      paperSizes.map(async (size, index) => {
-        const blob = templates[index];
-        const formData = new FormData();
-        formData.append('file', blob, `schengen_visa_photo_${size.toLowerCase()}.pdf`);
-        const response = await fetch('/api/upload-pdf', {
-          method: 'POST',
-          body: formData,
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to upload ${size} PDF`);
-        }
-        const data = await response.json();
-        return data.url;
-      })
-    );
-
+  const handleEmailPhotos = () => {
     setShowEmailModal(true);
-    // The actual email sending will be handled in the EmailPhotosModal component
+    setEmailSent(false);
+    setSentEmail('');
+  };
+
+  const handleSendEmail = async (email: string) => {
+    try {
+      if (!currentPhotoUrl) {
+        throw new Error('No photo available to send');
+      }
+
+      const paperSizes = ['A4', 'A5', 'A6'];
+      const templates = await generateTemplates(currentPhotoUrl);
+      const pdfUrls = await Promise.all(
+        paperSizes.map(async (size, index) => {
+          const blob = templates[index];
+          const formData = new FormData();
+          formData.append('file', blob, `schengen_visa_photo_${size.toLowerCase()}.pdf`);
+          const response = await fetch('/api/upload-pdf', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${size} PDF`);
+          }
+          const data = await response.json();
+          return data.url;
+        })
+      );
+
+      await sendEmailWithPhotos(email, currentPhotoUrl, pdfUrls);
+      setEmailSent(true);
+      setSentEmail(email);
+      setShowEmailModal(false);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      // Show an error message to the user
+      alert(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Keep the modal open so the user can try again
+      setShowEmailModal(true);
+    }
   };
 
   const handleDownload = async () => {
@@ -502,20 +563,26 @@ export default function Home() {
                     onClick={handleRetake} 
                     variant="outline" 
                     className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                    disabled={isProcessing || isCorrectingBackground}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retake
                   </Button>
                   {!backgroundRemoved && !backgroundChangeInitiated && (
-                    <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing} />
+                    <BackgroundChangeButton onClick={handleBackgroundRemoval} disabled={isProcessing || isCorrectingBackground} />
                   )}
-                  {backgroundChangeInitiated && (
-                    <Button onClick={handleEmailPhotos} className="w-auto px-6">
+                  {(backgroundRemoved || backgroundChangeInitiated) && (
+                    <Button onClick={handleEmailPhotos} className="w-auto px-6" disabled={isProcessing || isCorrectingBackground}>
                       Email photos
                     </Button>
                   )}
                 </div>
-                {downloadError && <p className="text-gray-500 mt-2 text-center text-sm">{downloadError}</p>}
+                {(downloadError || generateError) && (
+                  <p className="text-gray-500 mt-2 text-center text-sm">{downloadError || generateError}</p>
+                )}
+                {(isProcessing || isCorrectingBackground) && (
+                  <p className="text-gray-500 mt-2 text-center text-sm">Processing...</p>
+                )}
               </div>
             )}
           </div>
@@ -526,6 +593,13 @@ export default function Home() {
         <EmailPhotosModal
           onClose={() => setShowEmailModal(false)}
           onSend={handleSendEmail}
+        />
+      )}
+      
+      {emailSent && (
+        <SuccessModal
+          email={sentEmail}
+          onClose={() => setEmailSent(false)}
         />
       )}
     </div>
