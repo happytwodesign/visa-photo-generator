@@ -6,7 +6,7 @@ export const SCHENGEN_PHOTO_REQUIREMENTS = {
 
 export const INITIAL_REQUIREMENTS = [
   '35x45mm photo size',
-  'Head height between 70% and 80% of photo height',
+  'Head height (including shoulders) between 70% and 80% of photo height',
   'Neutral facial expression',
   'Eyes open and clearly visible',
   'Face centered and looking straight at the camera',
