@@ -31,12 +31,19 @@ const loadModels = async () => {
 
 const TIMEOUT = 30000; // 30 seconds
 
+// Helper function to calculate distance between two points
+const distance = (point1: { x: number; y: number }, point2: { x: number; y: number }) => {
+  const dx = point1.x - point2.x;
+  const dy = point1.y - point2.y;
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
 export async function POST(request: Request) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
 
   try {
-    await loadModels(); // Ensure models are loaded before processing
+    await loadModels();
 
     console.log('Received POST request for photo processing');
     const photoRoomApiKey = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
@@ -166,27 +173,140 @@ export async function POST(request: Request) {
     console.log('Converting processed image to base64');
     const base64Image = photoBuffer.toString('base64');
 
-    console.log('Preparing requirements check');
-    const requirements = {
-      '35x45mm photo size': true,
-      'Head height: between 32mm and 36mm': detections ? true : 'Unable to verify',
-      'Neutral facial expression': 'Unable to verify automatically',
-      'Eyes open and clearly visible': 'Unable to verify automatically',
-      'Face centered and looking straight at the camera': detections ? true : 'Unable to verify',
-      'Plain light-colored background': config.removeBackground,
-      'No shadows on face or background': 'Unable to verify automatically',
-      'Mouth closed': 'Unable to verify automatically',
-      'No hair across eyes': 'Unable to verify automatically',
-      'No head covering (unless for religious reasons)': 'Unable to verify automatically',
-      'No glare on glasses, or preferably, no glasses': 'Unable to verify automatically'
-    };
+    // Perform face detection and landmark recognition on the processed image
+    const processedImage = await loadImage(photoBuffer);
+    const processedDetections = await faceapi.detectSingleFace(processedImage as any).withFaceLandmarks();
 
-    console.log('Photo processing completed successfully');
+    // Initialize the requirements object
+    const requirements: Record<string, { status: 'met' | 'uncertain' | 'not_met'; message?: string }> = {};
+
+    if (processedDetections) {
+      const face = processedDetections.detection;
+      const landmarks = processedDetections.landmarks;
+
+      // Image dimensions (processed image)
+      const imageWidth = processedImage.width;
+      const imageHeight = processedImage.height;
+
+      /*** Head Size and Position ***/
+      const chin = landmarks.positions[8];
+      const crown = landmarks.positions[24];
+      const faceHeight = distance(chin, crown);
+      const estimatedFullHeadHeight = faceHeight * 1.2;
+      const headHeightPercentage = (estimatedFullHeadHeight / imageHeight) * 100;
+      const headHeightRequirementMet = headHeightPercentage >= 70 && headHeightPercentage <= 80;
+
+      requirements['Head height between 70% and 80% of photo height'] = headHeightRequirementMet
+        ? { status: 'met' }
+        : { status: 'not_met', message: `Head height is ${headHeightPercentage.toFixed(1)}% of photo height` };
+
+      /*** Centering Check ***/
+      const faceBox = face.box;
+      const faceCenterX = faceBox.x + faceBox.width / 2;
+      const faceCenterY = faceBox.y + faceBox.height / 2;
+      const imageCenterX = imageWidth / 2;
+      const imageCenterY = imageHeight / 2;
+      const offsetX = Math.abs(faceCenterX - imageCenterX);
+      const offsetY = Math.abs(faceCenterY - imageCenterY);
+      const acceptableOffsetX = imageWidth * 0.05;
+      const acceptableOffsetY = imageHeight * 0.05;
+      const isCentered = offsetX <= acceptableOffsetX && offsetY <= acceptableOffsetY;
+
+      requirements['Face centered'] = isCentered
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Face is not centered in the photo' };
+
+      /*** Head Tilt and Orientation ***/
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+      const leftEyeCenter = leftEye.reduce(
+        (acc: { x: number; y: number }, point: { x: number; y: number }) => ({
+          x: acc.x + point.x / leftEye.length,
+          y: acc.y + point.y / leftEye.length
+        }),
+        { x: 0, y: 0 }
+      );
+      const rightEyeCenter = rightEye.reduce(
+        (acc: { x: number; y: number }, point: { x: number; y: number }) => ({
+          x: acc.x + point.x / rightEye.length,
+          y: acc.y + point.y / rightEye.length
+        }),
+        { x: 0, y: 0 }
+      );
+      const deltaX = rightEyeCenter.x - leftEyeCenter.x;
+      const deltaY = rightEyeCenter.y - leftEyeCenter.y;
+      const angleRadians = Math.atan2(deltaY, deltaX);
+      const angleDegrees = angleRadians * (180 / Math.PI);
+      const headTiltRequirementMet = Math.abs(angleDegrees) <= 5;
+
+      requirements['Head is straight (no tilt)'] = headTiltRequirementMet
+        ? { status: 'met' }
+        : { status: 'not_met', message: `Head is tilted by ${angleDegrees.toFixed(1)} degrees` };
+
+      /*** Eyes Open Check ***/
+      const calculateEAR = (eye: faceapi.Point[]) => {
+        const p1 = eye[0], p2 = eye[1], p3 = eye[2], p4 = eye[3], p5 = eye[4], p6 = eye[5];
+        const vertical1 = distance(p2, p6);
+        const vertical2 = distance(p3, p5);
+        const horizontal = distance(p1, p4);
+        return (vertical1 + vertical2) / (2.0 * horizontal);
+      };
+      const leftEAR = calculateEAR(leftEye);
+      const rightEAR = calculateEAR(rightEye);
+      const avgEAR = (leftEAR + rightEAR) / 2.0;
+      const EAR_THRESHOLD = 0.2;
+      const eyesOpen = avgEAR > EAR_THRESHOLD;
+
+      requirements['Eyes open and clearly visible'] = eyesOpen
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Eyes appear to be closed' };
+
+      /*** Mouth Closed Check ***/
+      const mouth = landmarks.getMouth();
+      const calculateMAR = (mouth: faceapi.Point[]) => {
+        const p49 = mouth[0], p55 = mouth[6], p52 = mouth[3], p58 = mouth[9];
+        const vertical = distance(p52, p58);
+        const horizontal = distance(p49, p55);
+        return vertical / horizontal;
+      };
+      const mar = calculateMAR(mouth);
+      const MAR_THRESHOLD = 0.4;
+      const mouthClosed = mar < MAR_THRESHOLD;
+
+      requirements['Mouth closed'] = mouthClosed
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Mouth appears to be open' };
+
+      /*** Neutral Facial Expression ***/
+      const neutralExpression = eyesOpen && mouthClosed;
+      requirements['Neutral facial expression'] = neutralExpression
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Facial expression is not neutral' };
+
+    } else {
+      requirements['Face detected'] = { status: 'not_met', message: 'No face detected in the photo' };
+    }
+
+    // Additional requirements that cannot be automatically verified
+    requirements['Plain light-colored background'] = config.removeBackground
+      ? { status: 'met' }
+      : { status: 'uncertain', message: 'Cannot verify background color' };
+    requirements['No shadows on face or background'] = { status: 'uncertain', message: 'Unable to verify automatically' };
+    requirements['No hair across eyes'] = { status: 'uncertain', message: 'Unable to verify automatically' };
+    requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain', message: 'Unable to verify automatically' };
+    requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain', message: 'Unable to verify automatically' };
+
+    console.log('Photo processing and requirement checks completed successfully');
+    console.log('Requirements check results:');
+    Object.entries(requirements).forEach(([key, value]) => {
+      console.log(`${key}: ${value.status}${value.message ? ` - ${value.message}` : ''}`);
+    });
     console.log('Returning processed image data and requirements check');
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       photoUrl: `data:image/png;base64,${base64Image}`,
       onlineSubmissionUrl: `data:image/png;base64,${base64Image}`,
-      requirements: requirements
+      requirements: requirements,
     });
   } catch (error: unknown) {
     console.error('Error processing photo:', error);
@@ -198,10 +318,4 @@ export async function POST(request: Request) {
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-async function processPhoto(request: Request, signal: AbortSignal) {
-  // Move the entire photo processing logic here
-  // Make sure to pass the `signal` to any fetch or axios calls
-  // e.g., axios.post(..., { signal })
 }

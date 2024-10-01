@@ -6,6 +6,7 @@ import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
 import DownloadOptions from './components/DownloadOptions';
 import RequirementsList from './components/RequirementsList';
+import RequirementList from './components/RequirementList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
 import { ProcessingConfigType } from './types';
@@ -20,6 +21,7 @@ import { EmailPhotosModal } from './components/EmailPhotosModal';
 import { sendEmailWithPhotos } from './lib/emailService';
 import { BackgroundChangeButton } from './components/BackgroundChangeButton';
 import { SuccessModal } from './components/SuccessModal';
+import { INITIAL_REQUIREMENTS } from './constants';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -99,6 +101,8 @@ export default function Home() {
   const [emailSent, setEmailSent] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
   const [isEmailSending, setIsEmailSending] = useState(false);
+  const [detailedRequirements, setDetailedRequirements] = useState<Record<string, { status: 'met' | 'not_met' | 'uncertain', message?: string }>>({});
+  const [initialRequirements, setInitialRequirements] = useState<string[]>(INITIAL_REQUIREMENTS);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -193,13 +197,35 @@ export default function Home() {
       }
       
       console.log('Full API response:', data);
+      console.log('Detailed requirements from server:');
+      Object.entries(data.requirements).forEach(([key, value]) => {
+        console.log(`${key}: ${JSON.stringify(value)}`);
+      });
+
       setProcessedPhoto(data.photoUrl);
       setOnlineSubmissionUrl(data.onlineSubmissionUrl);
-      setRequirements(data.requirements);
+      
+      // Convert the new requirements format to the old format
+      const simplifiedRequirements = Object.entries(data.requirements).reduce((acc, [key, value]: [string, any]) => {
+        acc[key] = value.status === 'met';
+        return acc;
+      }, {} as Record<string, boolean>);
+      
+      console.log('Simplified requirements:', simplifiedRequirements);
+      
+      setRequirements(simplifiedRequirements);
       setError(null);
 
       checkImageDimensions(data.photoUrl);
       setCurrentPhotoUrl(data.photoUrl);
+
+      // Log the number of met and unmet requirements
+      const metRequirements = Object.values(simplifiedRequirements).filter(Boolean).length;
+      const totalRequirements = Object.keys(simplifiedRequirements).length;
+      console.log(`Met requirements: ${metRequirements}/${totalRequirements}`);
+
+      setDetailedRequirements(data.requirements);
+
     } catch (error) {
       console.error('Error processing photo:', error);
       let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
@@ -514,10 +540,21 @@ export default function Home() {
 
                     {/* Requirements list */}
                     <div className={`${isMobile ? 'mb-32 max-w-[350px] mx-auto' : ''}`}>
-                      <RequirementsList 
-                        requirements={processedPhoto ? allRequirementsMet : undefined} 
-                        showChecks={!!processedPhoto}
-                      />
+                      {!processedPhoto ? (
+                        <div>
+                          <h4 className="text-lg font-semibold mb-2">Photo Requirements</h4>
+                          <ul className="list-disc pl-5">
+                            {initialRequirements.map((req, index) => (
+                              <li key={index}>{req}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div>
+                          <h4 className="text-lg font-semibold mb-2">Requirements Check</h4>
+                          <RequirementList requirements={detailedRequirements} />
+                        </div>
+                      )}
                     </div>
 
                     {!isMobile && processedPhoto && (
@@ -635,4 +672,3 @@ export default function Home() {
     </div>
   );
 }
-
