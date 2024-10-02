@@ -38,6 +38,59 @@ const distance = (point1: { x: number; y: number }, point2: { x: number; y: numb
   return Math.sqrt(dx * dx + dy * dy);
 };
 
+// Update existing helper functions
+const calculateBrightness = (pixel: { r: number; g: number; b: number }) => {
+  return (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
+};
+
+const calculateBrightnessStdDev = (brightnessValues: number[]) => {
+  const mean = brightnessValues.reduce((sum, val) => sum + val, 0) / brightnessValues.length;
+  const variance = brightnessValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / brightnessValues.length;
+  return Math.sqrt(variance);
+};
+
+// Update the getPixelsInPolygon function
+const getPixelsInPolygon = async (polygon: faceapi.Point[], photoBuffer: Buffer) => {
+  const { data, info } = await sharp(photoBuffer).raw().toBuffer({ resolveWithObject: true });
+
+  const width = info.width;
+  const height = info.height;
+  const channels = info.channels;
+
+  const isInside = (x: number, y: number) => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < ((xj - xi) * (y - yi)) / (yj - yi + xi));
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  const pixels = [];
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 2) {
+      if (isInside(x, y)) {
+        const idx = (y * width + x) * channels;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        pixels.push({ r, g, b });
+      }
+    }
+  }
+  return pixels;
+};
+
+const calculateVariance = (pixels: { r: number; g: number; b: number }[]) => {
+  const brightnessValues = pixels.map(p => (p.r + p.g + p.b) / 3);
+  const mean = brightnessValues.reduce((sum, val) => sum + val, 0) / brightnessValues.length;
+  const variance = brightnessValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / brightnessValues.length;
+  return variance;
+};
+
 export async function POST(request: Request) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
@@ -215,19 +268,18 @@ export async function POST(request: Request) {
       requirements['Neutral facial expression'] = neutralExpression
         ? { status: 'met' }
         : { status: 'not_met', message: 'Facial expression is not neutral' };
-
       /*** Eyes Open Check ***/
-      const leftEye = landmarks.getLeftEye();
-      const rightEye = landmarks.getRightEye();
-      const calculateEAR = (eye: faceapi.Point[]) => {
-        const p1 = eye[0], p2 = eye[1], p3 = eye[2], p4 = eye[3], p5 = eye[4], p6 = eye[5];
+      const leftEyePoints = landmarks.getLeftEye();
+      const rightEyePoints = landmarks.getRightEye();
+      const calculateEAR = (eyePoints: faceapi.Point[]) => {
+        const [p1, p2, p3, p4, p5, p6] = eyePoints;
         const vertical1 = distance(p2, p6);
         const vertical2 = distance(p3, p5);
         const horizontal = distance(p1, p4);
         return (vertical1 + vertical2) / (2.0 * horizontal);
       };
-      const leftEAR = calculateEAR(leftEye);
-      const rightEAR = calculateEAR(rightEye);
+      const leftEAR = calculateEAR(leftEyePoints);
+      const rightEAR = calculateEAR(rightEyePoints);
       const avgEAR = (leftEAR + rightEAR) / 2.0;
       const EAR_THRESHOLD = 0.2;
       const eyesOpen = avgEAR > EAR_THRESHOLD;
@@ -342,6 +394,56 @@ export async function POST(request: Request) {
         ? { status: 'met' }
         : { status: 'not_met', message: 'Mouth appears to be open' };
 
+      /*** No Hair Covers the Eyes ***/
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+
+      let eyesClear = true;
+      let eyeStdDevs = [];
+
+      for (const eye of [leftEye, rightEye]) {
+        const eyePixels = await getPixelsInPolygon(eye, photoBuffer);
+        const brightnessValues = eyePixels.map(calculateBrightness);
+        const eyeBrightnessStdDev = calculateBrightnessStdDev(brightnessValues);
+        eyeStdDevs.push(eyeBrightnessStdDev);
+        const EYE_STDDEV_THRESHOLD = 5; // Decreased to 5 as suggested
+
+        if (eyeBrightnessStdDev > EYE_STDDEV_THRESHOLD) {
+          eyesClear = false;
+          break;
+        }
+      }
+
+      requirements['No hair covers the eyes'] = eyesClear
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Hair may be covering the eyes' };
+
+      console.log('No Hair Covers the Eyes Check:');
+      console.log(`Left Eye StdDev: ${eyeStdDevs[0]?.toFixed(2)}, Right Eye StdDev: ${eyeStdDevs[1]?.toFixed(2)}`);
+      console.log(`Eyes Clear: ${eyesClear}`);
+
+      /*** No Hair Covers the Face ***/
+      const faceContour = [
+        ...landmarks.getJawOutline(),
+        ...landmarks.getLeftEyeBrow(),
+        ...landmarks.getRightEyeBrow()
+      ];
+
+      const facePixels = await getPixelsInPolygon(faceContour, photoBuffer);
+      const faceBrightnessValues = facePixels.map(calculateBrightness);
+      const faceBrightnessStdDev = calculateBrightnessStdDev(faceBrightnessValues);
+      const FACE_STDDEV_THRESHOLD = 15; // Increased to 15 as suggested
+
+      const hairCoveringFace = faceBrightnessStdDev > FACE_STDDEV_THRESHOLD;
+
+      requirements['No hair covers the face'] = !hairCoveringFace
+        ? { status: 'met' }
+        : { status: 'not_met', message: 'Hair may be covering parts of the face' };
+
+      console.log('No Hair Covers the Face Check:');
+      console.log(`Face Brightness StdDev: ${faceBrightnessStdDev.toFixed(2)}`);
+      console.log(`Hair Covering Face: ${hairCoveringFace}`);
+
     } else {
       requirements['Face detected'] = { status: 'not_met', message: 'No face detected in the photo' };
     }
@@ -351,10 +453,10 @@ export async function POST(request: Request) {
       ? { status: 'met' }
       : { status: 'uncertain' };
     requirements['No shadows on face or background'] = { status: 'uncertain' };
-    requirements['No hair across eyes'] = { status: 'uncertain' };
     requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain' };
     requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain' };
 
+    // Update logging for debugging
     console.log('Photo processing and requirement checks completed successfully');
     console.log('Requirements check results:');
     Object.entries(requirements).forEach(([key, value]) => {
