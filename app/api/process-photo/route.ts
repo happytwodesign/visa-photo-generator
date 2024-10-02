@@ -194,13 +194,14 @@ export async function POST(request: Request) {
       const chin = landmarks.positions[8];
       const crown = landmarks.positions[24];
       const faceHeight = distance(chin, crown);
-      
+
       // Estimate the full head height including shoulders
       const estimatedFullHeadHeight = faceHeight * 1.5;
-      
+
       const headHeightPercentage = (estimatedFullHeadHeight / imageHeight) * 100;
       const headHeightRequirementMet = headHeightPercentage >= 55;
 
+      // Head height check
       requirements['Head height between 70% and 80% of photo height'] = headHeightRequirementMet
         ? { status: 'met' }
         : { 
@@ -241,15 +242,89 @@ export async function POST(request: Request) {
       const faceCenterY = faceBox.y + faceBox.height / 2;
       const imageCenterX = imageWidth / 2;
       const imageCenterY = imageHeight / 2;
-      const offsetX = Math.abs(faceCenterX - imageCenterX);
-      const offsetY = Math.abs(faceCenterY - imageCenterY);
-      const acceptableOffsetX = imageWidth * 0.05;
-      const acceptableOffsetY = imageHeight * 0.05;
-      const isCentered = offsetX <= acceptableOffsetX && offsetY <= acceptableOffsetY;
 
-      requirements['Face centered and looking straight at the camera'] = isCentered
-        ? { status: 'met' }
-        : { status: 'not_met', message: 'Face is not centered in the photo' };
+      // Calculate the percentage of offset from the center
+      const offsetXPercentage = Math.abs(faceCenterX - imageCenterX) / (imageWidth / 2) * 100;
+      const offsetYPercentage = Math.abs(faceCenterY - imageCenterY) / (imageHeight / 2) * 100;
+
+      // Log offset percentages
+      console.log('Face Centering Check:');
+      console.log(`Offset X: ${offsetXPercentage.toFixed(2)}%, Offset Y: ${offsetYPercentage.toFixed(2)}%`);
+
+      // Define thresholds for different states
+      const goodOffsetPercentage = 20;
+      const warningOffsetPercentage = 25;
+
+      // Check centering
+      let centeringStatus: 'met' | 'warning' | 'not_met';
+      if (offsetXPercentage <= goodOffsetPercentage && offsetYPercentage <= goodOffsetPercentage) {
+        centeringStatus = 'met';
+      } else if (offsetXPercentage <= warningOffsetPercentage && offsetYPercentage <= warningOffsetPercentage) {
+        centeringStatus = 'warning';
+      } else {
+        centeringStatus = 'not_met';
+      }
+
+      // Check if the face is looking straight (using eye positions and nose position)
+      const leftEyeCenter = landmarks.getLeftEye()[0];
+      const rightEyeCenter = landmarks.getRightEye()[3];
+      const nose = landmarks.getNose()[0];
+
+      // Calculate horizontal eye angle
+      const eyeAngleHorizontal = Math.abs(Math.atan2(rightEyeCenter.y - leftEyeCenter.y, rightEyeCenter.x - leftEyeCenter.x) * (180 / Math.PI));
+
+      // Calculate vertical eye angle (using nose position)
+      const eyeMidpointY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+      const eyeNoseAngleVertical = Math.abs(Math.atan2(nose.y - eyeMidpointY, nose.x - ((leftEyeCenter.x + rightEyeCenter.x) / 2)) * (180 / Math.PI));
+
+      // Log angle calculations
+      console.log('Face Angle Check:');
+      console.log(`Horizontal Eye Angle: ${eyeAngleHorizontal.toFixed(2)}°, Vertical Eye-Nose Angle: ${eyeNoseAngleVertical.toFixed(2)}°`);
+
+      const goodHorizontalAngleThreshold = 10;
+      const warningHorizontalAngleThreshold = 15;
+
+      // New thresholds for vertical angle
+      const goodVerticalAngleMin = 85;
+      const goodVerticalAngleMax = 95;
+      const warningVerticalAngleMin = 75;
+      const warningVerticalAngleMax = 105;
+
+      let lookingStraightStatus: 'met' | 'warning' | 'not_met';
+      if (eyeAngleHorizontal < goodHorizontalAngleThreshold && 
+          eyeNoseAngleVertical >= goodVerticalAngleMin && eyeNoseAngleVertical <= goodVerticalAngleMax) {
+        lookingStraightStatus = 'met';
+      } else if (eyeAngleHorizontal < warningHorizontalAngleThreshold && 
+                 eyeNoseAngleVertical >= warningVerticalAngleMin && eyeNoseAngleVertical <= warningVerticalAngleMax) {
+        lookingStraightStatus = 'warning';
+      } else {
+        lookingStraightStatus = 'not_met';
+      }
+
+      // Log final status
+      console.log('Final Face Position Status:');
+      console.log(`Centering Status: ${centeringStatus}, Looking Straight Status: ${lookingStraightStatus}`);
+
+      // Combine centering and looking straight checks
+      let faceCenteredAndStraightStatus: 'met' | 'warning' | 'not_met';
+      if (centeringStatus === 'met' && lookingStraightStatus === 'met') {
+        faceCenteredAndStraightStatus = 'met';
+      } else if (centeringStatus === 'not_met' && lookingStraightStatus === 'not_met') {
+        faceCenteredAndStraightStatus = 'not_met';
+      } else {
+        faceCenteredAndStraightStatus = 'warning';
+      }
+
+      requirements['Face centered and looking straight at the camera'] = {
+        status: faceCenteredAndStraightStatus,
+        message: faceCenteredAndStraightStatus === 'met'
+          ? ''
+          : faceCenteredAndStraightStatus === 'warning'
+          ? 'Face might not be perfectly centered or looking straight'
+          : centeringStatus === 'not_met'
+          ? 'Face is not centered in the photo'
+          : 'Face is not looking straight at the camera'
+      } as { status: 'met' | 'not_met' | 'uncertain'; message?: string };
 
       /*** Mouth Closed Check ***/
       const mouth = landmarks.getMouth();

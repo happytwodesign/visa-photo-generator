@@ -521,7 +521,7 @@ export default function Home() {
               <div className={`flex flex-col ${processedPhoto && !isMobile ? 'h-[calc(100%+24px)]' : 'h-full'}`}>
                 {!isMobile && (
                   <h3 className="text-2xl font-semibold mb-4">
-                    {!processedPhoto ? "Schengen Visa Photo Requirements" : "Photo Requirements Check"}
+                    {!processedPhoto ? "Photo Requirements" : "Requirements Check"}
                   </h3>
                 )}
                 
@@ -542,8 +542,7 @@ export default function Home() {
                     <div className={`${isMobile ? 'mb-32 max-w-[350px] mx-auto' : ''}`}>
                       {!processedPhoto ? (
                         <div>
-                          <h4 className="text-lg font-semibold mb-2">Photo Requirements</h4>
-                          <ul className="list-disc pl-5">
+                          <ul className="list-disc pl-5 space-y-3"> {/* Added space-y-3 here */}
                             {initialRequirements.map((req, index) => (
                               <li key={index}>{req}</li>
                             ))}
@@ -551,7 +550,6 @@ export default function Home() {
                         </div>
                       ) : (
                         <div>
-                          <h4 className="text-lg font-semibold mb-2">Requirements Check</h4>
                           <RequirementsCheck requirements={detailedRequirements} />
                         </div>
                       )}
