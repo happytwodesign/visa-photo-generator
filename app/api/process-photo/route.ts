@@ -394,9 +394,14 @@ export async function POST(request: Request) {
         ? { status: 'met' }
         : { status: 'not_met', message: 'Mouth appears to be open' };
 
-      /*** No Hair Covers the Eyes ***/
+      /*** No Hair Covers the Eyes and Face ***/
       const leftEye = landmarks.getLeftEye();
       const rightEye = landmarks.getRightEye();
+      const faceContour = [
+        ...landmarks.getJawOutline(),
+        ...landmarks.getLeftEyeBrow(),
+        ...landmarks.getRightEyeBrow()
+      ];
 
       let eyesClear = true;
       let eyeStdDevs = [];
@@ -406,7 +411,7 @@ export async function POST(request: Request) {
         const brightnessValues = eyePixels.map(calculateBrightness);
         const eyeBrightnessStdDev = calculateBrightnessStdDev(brightnessValues);
         eyeStdDevs.push(eyeBrightnessStdDev);
-        const EYE_STDDEV_THRESHOLD = 5; // Decreased to 5 as suggested
+        const EYE_STDDEV_THRESHOLD = 5;
 
         if (eyeBrightnessStdDev > EYE_STDDEV_THRESHOLD) {
           eyesClear = false;
@@ -414,47 +419,35 @@ export async function POST(request: Request) {
         }
       }
 
-      requirements['No hair covers the eyes'] = eyesClear
-        ? { status: 'met' }
-        : { status: 'not_met', message: 'Hair may be covering the eyes' };
-
-      console.log('No Hair Covers the Eyes Check:');
-      console.log(`Left Eye StdDev: ${eyeStdDevs[0]?.toFixed(2)}, Right Eye StdDev: ${eyeStdDevs[1]?.toFixed(2)}`);
-      console.log(`Eyes Clear: ${eyesClear}`);
-
-      /*** No Hair Covers the Face ***/
-      const faceContour = [
-        ...landmarks.getJawOutline(),
-        ...landmarks.getLeftEyeBrow(),
-        ...landmarks.getRightEyeBrow()
-      ];
-
       const facePixels = await getPixelsInPolygon(faceContour, photoBuffer);
       const faceBrightnessValues = facePixels.map(calculateBrightness);
       const faceBrightnessStdDev = calculateBrightnessStdDev(faceBrightnessValues);
-      const FACE_STDDEV_THRESHOLD = 15; // Increased to 15 as suggested
+      const FACE_STDDEV_THRESHOLD = 15;
 
       const hairCoveringFace = faceBrightnessStdDev > FACE_STDDEV_THRESHOLD;
 
-      requirements['No hair covers the face'] = !hairCoveringFace
-        ? { status: 'met' }
-        : { status: 'not_met', message: 'Hair may be covering parts of the face' };
+      const noHairAcrossEyesAndFace = eyesClear && !hairCoveringFace;
+      requirements['No hair across eyes and the face'] = {
+        status: noHairAcrossEyesAndFace ? 'met' : 'not_met',
+        message: noHairAcrossEyesAndFace ? '' : 'Hair may be covering the eyes or parts of the face'
+      };
 
-      console.log('No Hair Covers the Face Check:');
+      console.log('No Hair Covers the Eyes and Face Check:');
+      console.log(`Left Eye StdDev: ${eyeStdDevs[0]?.toFixed(2)}, Right Eye StdDev: ${eyeStdDevs[1]?.toFixed(2)}`);
       console.log(`Face Brightness StdDev: ${faceBrightnessStdDev.toFixed(2)}`);
-      console.log(`Hair Covering Face: ${hairCoveringFace}`);
+      console.log(`No Hair Across Eyes and Face: ${noHairAcrossEyesAndFace}`);
 
     } else {
       requirements['Face detected'] = { status: 'not_met', message: 'No face detected in the photo' };
     }
 
     // Additional requirements that cannot be automatically verified
-    requirements['Plain light-colored background'] = config.removeBackground
-      ? { status: 'met' }
-      : { status: 'uncertain' };
     requirements['No shadows on face or background'] = { status: 'uncertain' };
     requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain' };
     requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain' };
+    requirements['Plain light-colored background'] = config.removeBackground
+      ? { status: 'met' }
+      : { status: 'uncertain' };
 
     // Update logging for debugging
     console.log('Photo processing and requirement checks completed successfully');
