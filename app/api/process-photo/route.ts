@@ -178,7 +178,7 @@ export async function POST(request: Request) {
     const processedDetections = await faceapi.detectSingleFace(processedImage as any).withFaceLandmarks();
 
     // Initialize the requirements object
-    const requirements: Record<string, { status: 'met' | 'uncertain' | 'not_met'; message?: string }> = {
+    const requirements: Record<string, { status: 'met' | 'not_met' | 'uncertain'; message?: string }> = {
       '35x45mm photo size': { status: 'met' },
     };
 
@@ -274,11 +274,11 @@ export async function POST(request: Request) {
     // Additional requirements that cannot be automatically verified
     requirements['Plain light-colored background'] = config.removeBackground
       ? { status: 'met' }
-      : { status: 'uncertain', message: 'Cannot verify background color' };
-    requirements['No shadows on face or background'] = { status: 'uncertain', message: 'Unable to verify automatically' };
-    requirements['No hair across eyes'] = { status: 'uncertain', message: 'Unable to verify automatically' };
-    requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain', message: 'Unable to verify automatically' };
-    requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain', message: 'Unable to verify automatically' };
+      : { status: 'uncertain' };
+    requirements['No shadows on face or background'] = { status: 'uncertain' };
+    requirements['No hair across eyes'] = { status: 'uncertain' };
+    requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain' };
+    requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain' };
 
     console.log('Photo processing and requirement checks completed successfully');
     console.log('Requirements check results:');

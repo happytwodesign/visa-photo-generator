@@ -3,13 +3,17 @@ import { Button } from './ui/button';
 
 interface BackgroundChangeButtonProps {
   onClick: () => void;
-  disabled?: boolean;
+  disabled: boolean;
 }
 
-export function BackgroundChangeButton({ onClick, disabled }: BackgroundChangeButtonProps) {
+export const BackgroundChangeButton: React.FC<BackgroundChangeButtonProps> = ({ onClick, disabled }) => {
   return (
-    <Button onClick={onClick} disabled={disabled}>
-      Change Background for $2.99
+    <Button 
+      onClick={onClick} 
+      disabled={disabled}
+      className="px-6"
+    >
+      Improve Background for $2.99
     </Button>
   );
-}
+};

@@ -5,8 +5,6 @@ import PhotoUpload from './components/PhotoUpload';
 import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
 import DownloadOptions from './components/DownloadOptions';
-import RequirementsList from './components/RequirementsList';
-import RequirementList from './components/RequirementList';
 import { processPhoto, defaultConfig } from './lib/photoProcessing';
 import { SCHENGEN_PHOTO_REQUIREMENTS } from './constants';
 import { ProcessingConfigType } from './types';
@@ -22,6 +20,8 @@ import { sendEmailWithPhotos } from './lib/emailService';
 import { BackgroundChangeButton } from './components/BackgroundChangeButton';
 import { SuccessModal } from './components/SuccessModal';
 import { INITIAL_REQUIREMENTS } from './constants';
+import RequirementsList from './components/RequirementsList';
+import RequirementsCheck from './components/RequirementsCheck';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -529,7 +529,7 @@ export default function Home() {
                   <div>
                     {isMobile && processedPhoto && (
                       <div className="mb-12 w-full max-w-[350px] mx-auto">
-                        <h4 className="text-lg font-semibold mb-2 text-left">Click to download</h4>
+                        <h4 className="text-lg font-semibold mb-2 text-left">Ready to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={currentPhotoUrl || onlineSubmissionUrl || ''}
@@ -552,14 +552,14 @@ export default function Home() {
                       ) : (
                         <div>
                           <h4 className="text-lg font-semibold mb-2">Requirements Check</h4>
-                          <RequirementList requirements={detailedRequirements} />
+                          <RequirementsCheck requirements={detailedRequirements} />
                         </div>
                       )}
                     </div>
 
                     {!isMobile && processedPhoto && (
                       <div className="mt-4">
-                        <h4 className="text-lg font-semibold mb-2">Click to download</h4>
+                        <h4 className="text-lg font-semibold mb-2">Ready to download</h4>
                         <DownloadOptions 
                           photoUrl={currentPhotoUrl || processedPhoto || ''}
                           onlineSubmissionUrl={currentPhotoUrl || onlineSubmissionUrl || ''}
