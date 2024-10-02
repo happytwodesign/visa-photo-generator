@@ -43,9 +43,15 @@ const calculateBrightness = (pixel: { r: number; g: number; b: number }) => {
   return (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
 };
 
-const calculateBrightnessStdDev = (brightnessValues: number[]) => {
-  const mean = brightnessValues.reduce((sum, val) => sum + val, 0) / brightnessValues.length;
-  const variance = brightnessValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / brightnessValues.length;
+const calculateAverageBrightness = (brightnessValues: number[]) => {
+  const sum = brightnessValues.reduce((acc, val) => acc + val, 0);
+  return sum / brightnessValues.length;
+};
+
+const calculateBrightnessStdDev = (brightnessValues: number[], mean: number) => {
+  const variance =
+    brightnessValues.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) /
+    brightnessValues.length;
   return Math.sqrt(variance);
 };
 
@@ -409,7 +415,7 @@ export async function POST(request: Request) {
       for (const eye of [leftEye, rightEye]) {
         const eyePixels = await getPixelsInPolygon(eye, photoBuffer);
         const brightnessValues = eyePixels.map(calculateBrightness);
-        const eyeBrightnessStdDev = calculateBrightnessStdDev(brightnessValues);
+        const eyeBrightnessStdDev = calculateBrightnessStdDev(brightnessValues, calculateAverageBrightness(brightnessValues));
         eyeStdDevs.push(eyeBrightnessStdDev);
         const EYE_STDDEV_THRESHOLD = 5;
 
@@ -419,12 +425,12 @@ export async function POST(request: Request) {
         }
       }
 
-      const facePixels = await getPixelsInPolygon(faceContour, photoBuffer);
-      const faceBrightnessValues = facePixels.map(calculateBrightness);
-      const faceBrightnessStdDev = calculateBrightnessStdDev(faceBrightnessValues);
-      const FACE_STDDEV_THRESHOLD = 15;
+      const faceContourPixels = await getPixelsInPolygon(faceContour, photoBuffer);
+      const faceContourBrightnessValues = faceContourPixels.map(calculateBrightness);
+      const faceContourBrightnessStdDev = calculateBrightnessStdDev(faceContourBrightnessValues, calculateAverageBrightness(faceContourBrightnessValues));
+      const FACE_CONTOUR_STDDEV_THRESHOLD = 10;
 
-      const hairCoveringFace = faceBrightnessStdDev > FACE_STDDEV_THRESHOLD;
+      const hairCoveringFace = faceContourBrightnessStdDev > FACE_CONTOUR_STDDEV_THRESHOLD;
 
       const noHairAcrossEyesAndFace = eyesClear && !hairCoveringFace;
       requirements['No hair across eyes and the face'] = {
@@ -434,15 +440,82 @@ export async function POST(request: Request) {
 
       console.log('No Hair Covers the Eyes and Face Check:');
       console.log(`Left Eye StdDev: ${eyeStdDevs[0]?.toFixed(2)}, Right Eye StdDev: ${eyeStdDevs[1]?.toFixed(2)}`);
-      console.log(`Face Brightness StdDev: ${faceBrightnessStdDev.toFixed(2)}`);
+      console.log(`Eye StdDev Threshold: ${EYE_STDDEV_THRESHOLD}`);
+      console.log(`Face Contour Brightness StdDev: ${faceContourBrightnessStdDev.toFixed(2)}`);
+      console.log(`Face Contour StdDev Threshold: ${FACE_CONTOUR_STDDEV_THRESHOLD}`);
       console.log(`No Hair Across Eyes and Face: ${noHairAcrossEyesAndFace}`);
+
+      /*** No Shadows on Face or Background ***/
+      // Get face landmarks to define the face region
+      const faceLandmarks = landmarks.positions;
+
+      // Get pixels within the face region
+      const facePixels = await getPixelsInPolygon(faceLandmarks, photoBuffer);
+
+      // Calculate brightness values for face pixels
+      const faceBrightnessValues = facePixels.map(calculateBrightness);
+
+      // Calculate mean brightness of the face
+      const faceMeanBrightness = calculateAverageBrightness(faceBrightnessValues);
+
+      // Calculate brightness standard deviation for face
+      const faceBrightnessStdDev = calculateBrightnessStdDev(faceBrightnessValues, faceMeanBrightness);
+
+      // Threshold for acceptable brightness variation (adjust based on testing)
+      const FACE_SHADOW_STDDEV_THRESHOLD = 40; // Adjust this value
+
+      // Determine if shadows are present on the face
+      const shadowsOnFace = faceBrightnessStdDev > FACE_SHADOW_STDDEV_THRESHOLD;
+      // Get background pixels
+      const backgroundPixels = await getPixelsInPolygon(faceLandmarks, photoBuffer);
+
+      let shadowsOnBackground = false;
+      let backgroundBrightnessStdDev = 0;
+
+      if (backgroundPixels.length >= 100) {
+        // Calculate brightness values for background pixels
+        const backgroundBrightnessValues = backgroundPixels.map(calculateBrightness);
+
+        // Calculate mean brightness of the background
+        const backgroundMeanBrightness = calculateAverageBrightness(backgroundBrightnessValues);
+
+        // Calculate brightness standard deviation for background
+        backgroundBrightnessStdDev = calculateBrightnessStdDev(backgroundBrightnessValues, backgroundMeanBrightness);
+
+        // Threshold for acceptable brightness variation (adjust based on testing)
+        const BACKGROUND_SHADOW_STDDEV_THRESHOLD = 25; // Adjust this value
+
+        // Determine if shadows are present on the background
+        shadowsOnBackground = backgroundBrightnessStdDev > BACKGROUND_SHADOW_STDDEV_THRESHOLD;
+      }
+
+      // Combine the shadow checks
+      const noShadows = !shadowsOnFace && !shadowsOnBackground;
+
+      requirements['No shadows on face or background'] = noShadows
+        ? { status: 'met' }
+        : { 
+            status: 'not_met', 
+            message: shadowsOnFace && shadowsOnBackground
+              ? 'Shadows detected on both face and background'
+              : shadowsOnFace
+              ? 'Shadows detected on the face'
+              : 'Shadows detected on the background'
+          };
+
+      // Log for debugging
+      console.log('Shadows Check:');
+      console.log(`Face Brightness StdDev: ${faceBrightnessStdDev.toFixed(2)}`);
+      console.log(`Face Shadow StdDev Threshold: ${FACE_SHADOW_STDDEV_THRESHOLD}`);
+      console.log(`Background Brightness StdDev: ${backgroundBrightnessStdDev.toFixed(2)}`);
+      console.log(`Background Shadow StdDev Threshold: ${BACKGROUND_SHADOW_STDDEV_THRESHOLD}`);
+      console.log(`No Shadows: ${noShadows}`);
 
     } else {
       requirements['Face detected'] = { status: 'not_met', message: 'No face detected in the photo' };
     }
 
     // Additional requirements that cannot be automatically verified
-    requirements['No shadows on face or background'] = { status: 'uncertain' };
     requirements['No head covering (unless for religious reasons)'] = { status: 'uncertain' };
     requirements['No glare on glasses, or preferably, no glasses'] = { status: 'uncertain' };
     requirements['Plain light-colored background'] = config.removeBackground
