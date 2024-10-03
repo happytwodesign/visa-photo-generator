@@ -11,7 +11,7 @@ export const INITIAL_REQUIREMENTS = [
   'Eyes open and clearly visible',
   'Face centered and looking straight at the camera',
   'Mouth closed',
-  'No shadows on face or background',
+  'No shadows on face',
   'No hair across eyes and the face',
   'No head covering (unless for religious reasons)',
   'No glare on glasses, or preferably, no glasses',
