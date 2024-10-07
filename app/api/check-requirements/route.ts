@@ -82,10 +82,10 @@ Use the following guidelines:
    - Pass: Fully closed or slightly open
    - Fail: Visibly open
 
-3. No shadows on face or background:
-   - Pass: If background is mostly uniform and suitable for a visa photo
-   - Semi Pass: Minor shadows or slight non-uniformity
-   - Fail: Significant shadows or very non-uniform background
+3. No shadows on face:
+   - Pass: Minor shadows 
+   - Semi Pass: Minor shadows, but might be causing issues on the printed version
+   - Fail: Significant shadows
 
 For other criteria, use your judgment to determine Pass, Semi Pass, or Fail.
 
@@ -123,6 +123,12 @@ Details (only if Semi Pass or Fail, without any prefix)
     return NextResponse.json({ requirementsCheck: parsedRequirements });
   } catch (error) {
     console.error('Error checking requirements with ChatGPT:', error);
+    
+    // Return a specific error code for rate limit errors
+    if (error.status === 429) {
+      return NextResponse.json({ error: 'API rate limit exceeded', code: 'RATE_LIMIT' }, { status: 429 });
+    }
+    
     return NextResponse.json({ error: 'Failed to check requirements' }, { status: 500 });
   }
 }
