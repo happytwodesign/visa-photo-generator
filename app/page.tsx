@@ -12,7 +12,7 @@ import { Button } from './components/ui/button';
 import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
 import { generateTemplates } from './lib/templateGenerator';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, X, AlertTriangle } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { removeBackground } from './lib/backgroundRemoval';
 import { EmailPhotosModal } from './components/EmailPhotosModal';
@@ -78,7 +78,7 @@ export default function Home() {
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
   const [processedPhoto, setProcessedPhoto] = useState<string | null>(null);
-  const [requirements, setRequirements] = useState<Record<string, boolean>>({});
+  const [requirements, setRequirements] = useState<Array<{ name: string; status: 'Pass' | 'Fail' | 'Recommendation' | 'Semi Pass'; message?: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUploadMessage, setShowUploadMessage] = useState(false);
@@ -103,6 +103,7 @@ export default function Home() {
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [detailedRequirements, setDetailedRequirements] = useState<Record<string, { status: 'met' | 'not_met' | 'uncertain', message?: string }>>({});
   const [initialRequirements, setInitialRequirements] = useState<string[]>(INITIAL_REQUIREMENTS);
+  const [requirementsCheck, setRequirementsCheck] = useState<string | null>(null);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -176,72 +177,38 @@ export default function Home() {
       formData.append('photo', uploadedPhoto);
       formData.append('config', JSON.stringify(processingConfig));
 
-      // Initial request to start processing
-      const response = await fetch('/api/process-photo', {
+      // Process the photo
+      const processResponse = await fetch('/api/process-photo', {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+      if (!processResponse.ok) {
+        throw new Error(`Server error: ${processResponse.status}`);
       }
 
-      const { jobId } = await response.json();
+      const { photoUrl } = await processResponse.json();
 
-      // Poll for job completion
-      let jobComplete = false;
-      let attempts = 0;
-      const maxAttempts = 60; // Increase max attempts to 60 (2 minutes total)
+      // Check requirements with ChatGPT
+      const checkResponse = await fetch('/api/check-requirements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photoUrl }),
+      });
 
-      while (!jobComplete && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds
-
-        try {
-          const statusResponse = await fetch(`/api/process-photo?jobId=${jobId}`);
-          if (!statusResponse.ok) {
-            if (statusResponse.status === 504) {
-              console.log(`Job status check timed out (attempt ${attempts + 1}), retrying...`);
-              attempts++;
-              continue;
-            }
-            throw new Error(`Failed to check job status: ${statusResponse.status}`);
-          }
-
-          const jobData = await statusResponse.json();
-          console.log('Job status:', jobData.status);
-
-          if (jobData.status === 'completed') {
-            jobComplete = true;
-            if (!jobData.result) {
-              throw new Error('Job completed but no result found');
-            }
-            setProcessedPhoto(jobData.result.photoUrl);
-            setOnlineSubmissionUrl(jobData.result.onlineSubmissionUrl);
-            setDetailedRequirements(jobData.result.requirements);
-
-            // Convert detailed requirements to simplified format
-            const simplifiedRequirements = Object.entries(jobData.result.requirements).reduce((acc, [key, value]: [string, any]) => {
-              acc[key] = value.status === 'met';
-              return acc;
-            }, {} as Record<string, boolean>);
-            setRequirements(simplifiedRequirements);
-
-            setCurrentPhotoUrl(jobData.result.photoUrl);
-            checkImageDimensions(jobData.result.photoUrl);
-          } else if (jobData.status === 'failed') {
-            throw new Error(jobData.error || 'Job processing failed');
-          } else if (jobData.status === 'processing') {
-            attempts++;
-          }
-        } catch (error) {
-          console.error('Error checking job status:', error);
-          attempts++;
-        }
+      if (!checkResponse.ok) {
+        throw new Error(`Failed to check requirements: ${checkResponse.statusText}`);
       }
 
-      if (!jobComplete) {
-        throw new Error('Job processing timed out. Please try again or contact support if the issue persists.');
-      }
+      const { requirementsCheck } = await checkResponse.json();
+
+      setProcessedPhoto(photoUrl);
+      setOnlineSubmissionUrl(photoUrl);
+      setRequirements(requirementsCheck);
+      setCurrentPhotoUrl(photoUrl);
+      checkImageDimensions(photoUrl);
 
       setError(null);
     } catch (error) {
@@ -251,7 +218,7 @@ export default function Home() {
       
       setProcessedPhoto(null);
       setOnlineSubmissionUrl(null);
-      setRequirements({});
+      setRequirements([]);
     } finally {
       setIsProcessing(false);
     }
@@ -262,7 +229,7 @@ export default function Home() {
     setUploadedPhotoUrl(null);
     setProcessedPhoto(null);
     setOnlineSubmissionUrl(null);
-    setRequirements({});
+    setRequirements([]);
     setError(null);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
@@ -286,7 +253,7 @@ export default function Home() {
     setOnlineSubmissionUrl(null);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
-    setRequirements({});
+    setRequirements([]);
     setError(null);
     setDownloadError(null); // Clear download error
     setGenerateError(null); // Clear generate error
@@ -560,7 +527,7 @@ export default function Home() {
                     <div className={`${isMobile ? 'mb-32 max-w-[350px] mx-auto' : ''}`}>
                       {!processedPhoto ? (
                         <div>
-                          <ul className="list-disc pl-5 space-y-3"> {/* Added space-y-3 here */}
+                          <ul className="list-disc pl-5 space-y-3">
                             {initialRequirements.map((req, index) => (
                               <li key={index}>{req}</li>
                             ))}
@@ -568,7 +535,7 @@ export default function Home() {
                         </div>
                       ) : (
                         <div>
-                          <RequirementsCheck requirements={detailedRequirements} />
+                          <RequirementsList requirements={requirements} />
                         </div>
                       )}
                     </div>

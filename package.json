@@ -33,6 +33,7 @@
     "jspdf": "^2.5.1",
     "lucide-react": "^0.439.0",
     "next": "^14.2.9",
+    "openai": "^4.67.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.2.3",
