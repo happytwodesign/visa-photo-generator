@@ -176,56 +176,74 @@ export default function Home() {
       formData.append('photo', uploadedPhoto);
       formData.append('config', JSON.stringify(processingConfig));
 
+      // Initial request to start processing
       const response = await fetch('/api/process-photo', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 500 && errorText.includes("extract_area: bad extract area")) {
-          throw new Error('The uploaded image could not be processed. Please try a different photo.');
-        } else {
-          throw new Error(`Server error: ${response.status}. ${errorText}`);
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const { jobId } = await response.json();
+
+      // Poll for job completion
+      let jobComplete = false;
+      let attempts = 0;
+      const maxAttempts = 60; // Increase max attempts to 60 (2 minutes total)
+
+      while (!jobComplete && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds
+
+        try {
+          const statusResponse = await fetch(`/api/process-photo?jobId=${jobId}`);
+          if (!statusResponse.ok) {
+            if (statusResponse.status === 504) {
+              console.log(`Job status check timed out (attempt ${attempts + 1}), retrying...`);
+              attempts++;
+              continue;
+            }
+            throw new Error(`Failed to check job status: ${statusResponse.status}`);
+          }
+
+          const jobData = await statusResponse.json();
+          console.log('Job status:', jobData.status);
+
+          if (jobData.status === 'completed') {
+            jobComplete = true;
+            if (!jobData.result) {
+              throw new Error('Job completed but no result found');
+            }
+            setProcessedPhoto(jobData.result.photoUrl);
+            setOnlineSubmissionUrl(jobData.result.onlineSubmissionUrl);
+            setDetailedRequirements(jobData.result.requirements);
+
+            // Convert detailed requirements to simplified format
+            const simplifiedRequirements = Object.entries(jobData.result.requirements).reduce((acc, [key, value]: [string, any]) => {
+              acc[key] = value.status === 'met';
+              return acc;
+            }, {} as Record<string, boolean>);
+            setRequirements(simplifiedRequirements);
+
+            setCurrentPhotoUrl(jobData.result.photoUrl);
+            checkImageDimensions(jobData.result.photoUrl);
+          } else if (jobData.status === 'failed') {
+            throw new Error(jobData.error || 'Job processing failed');
+          } else if (jobData.status === 'processing') {
+            attempts++;
+          }
+        } catch (error) {
+          console.error('Error checking job status:', error);
+          attempts++;
         }
       }
 
-      const data = await response.json();
-      
-      if (!data || !data.photoUrl) {
-        throw new Error('The server response was invalid. Please try again.');
+      if (!jobComplete) {
+        throw new Error('Job processing timed out. Please try again or contact support if the issue persists.');
       }
-      
-      console.log('Full API response:', data);
-      console.log('Detailed requirements from server:');
-      Object.entries(data.requirements).forEach(([key, value]) => {
-        console.log(`${key}: ${JSON.stringify(value)}`);
-      });
 
-      setProcessedPhoto(data.photoUrl);
-      setOnlineSubmissionUrl(data.onlineSubmissionUrl);
-      
-      // Convert the new requirements format to the old format
-      const simplifiedRequirements = Object.entries(data.requirements).reduce((acc, [key, value]: [string, any]) => {
-        acc[key] = value.status === 'met';
-        return acc;
-      }, {} as Record<string, boolean>);
-      
-      console.log('Simplified requirements:', simplifiedRequirements);
-      
-      setRequirements(simplifiedRequirements);
       setError(null);
-
-      checkImageDimensions(data.photoUrl);
-      setCurrentPhotoUrl(data.photoUrl);
-
-      // Log the number of met and unmet requirements
-      const metRequirements = Object.values(simplifiedRequirements).filter(Boolean).length;
-      const totalRequirements = Object.keys(simplifiedRequirements).length;
-      console.log(`Met requirements: ${metRequirements}/${totalRequirements}`);
-
-      setDetailedRequirements(data.requirements);
-
     } catch (error) {
       console.error('Error processing photo:', error);
       let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';

@@ -6,6 +6,7 @@ import * as faceapi from 'face-api.js';
 import path from 'path';
 import { Canvas, Image, loadImage } from 'canvas';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 // Polyfill for faceapi in Node environment
 faceapi.env.monkeyPatch({ Canvas, Image } as any);
@@ -101,11 +102,80 @@ const calculateVariance = (pixels: { r: number; g: number; b: number }[]) => {
   return variance;
 };
 
+// Add a new type for job status
+type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+// Add a new interface for job data
+interface JobData {
+  status: JobStatus;
+  result?: {
+    photoUrl: string;
+    onlineSubmissionUrl: string;
+    requirements: Record<string, { status: 'met' | 'not_met' | 'uncertain'; message?: string }>;
+  };
+  error?: string;
+}
+
+// In-memory storage for jobs (replace with a database in production)
+const jobs: Record<string, JobData> = {};
+
 export async function POST(request: Request) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+  try {
+    console.log('Received POST request for photo processing');
+    const formData = await request.formData();
+    const photo = formData.get('photo') as File;
+    const config = JSON.parse(formData.get('config') as string);
+
+    // Generate a unique job ID
+    const jobId = uuidv4();
+
+    // Initialize job status
+    jobs[jobId] = { status: 'pending' };
+
+    // Start processing in the background
+    processPhoto(jobId, photo, config).catch((error) => {
+      console.error('Error processing photo:', error);
+      jobs[jobId] = { status: 'failed', error: error.message };
+    });
+
+    // Immediately return the job ID to the client
+    return NextResponse.json({ jobId });
+  } catch (error) {
+    console.error('Error initiating photo processing:', error);
+    return NextResponse.json({ error: 'Failed to initiate photo processing' }, { status: 500 });
+  }
+}
+
+// New GET route to check job status
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const jobId = searchParams.get('jobId');
+
+  console.log('GET request received for jobId:', jobId);
+
+  if (!jobId || !jobs[jobId]) {
+    console.log('Invalid job ID:', jobId);
+    return NextResponse.json({ error: 'Invalid job ID' }, { status: 400 });
+  }
+
+  console.log('Returning job data for jobId:', jobId, 'Status:', jobs[jobId].status);
+  return NextResponse.json(jobs[jobId]);
+}
+
+async function processPhoto(jobId: string, photo: File, config: any) {
+  const timeoutDuration = 55000; // 55 seconds
+  let timeoutId: NodeJS.Timeout | undefined;
 
   try {
+    jobs[jobId] = { status: 'processing' };
+
+    // Start a timeout to update job status if processing takes too long
+    timeoutId = setTimeout(() => {
+      if (jobs[jobId].status === 'processing') {
+        jobs[jobId] = { status: 'failed', error: 'Processing timed out' };
+      }
+    }, timeoutDuration);
+
     await loadModels();
 
     console.log('Received POST request for photo processing');
@@ -117,9 +187,6 @@ export async function POST(request: Request) {
     }
 
     console.log('Parsing form data...');
-    const formData = await request.formData();
-    const photo = formData.get('photo') as File;
-    const config = JSON.parse(formData.get('config') as string);
     console.log('Form data parsed successfully. Config:', config);
 
     console.log('Step 1: Resizing image to 35x45 ratio');
@@ -410,7 +477,6 @@ export async function POST(request: Request) {
       const faceContour = [
         ...landmarks.getJawOutline(),
         ...landmarks.getLeftEyeBrow(),
-        ...landmarks.getRightEyeBrow()
       ];
 
       let eyesClear = true;
@@ -495,19 +561,32 @@ export async function POST(request: Request) {
     });
     console.log('Returning processed image data and requirements check');
 
-    return NextResponse.json({
-      photoUrl: `data:image/png;base64,${base64Image}`,
-      onlineSubmissionUrl: `data:image/png;base64,${base64Image}`,
+    // When processing is complete, update the job status
+    console.log('Job result:', {
+      photoUrl: `data:image/png;base64,${base64Image}`.substring(0, 100) + '...', // Log only the first 100 characters
+      onlineSubmissionUrl: `data:image/png;base64,${base64Image}`.substring(0, 100) + '...',
       requirements: requirements,
     });
+    jobs[jobId] = {
+      status: 'completed',
+      result: {
+        photoUrl: `data:image/png;base64,${base64Image}`,
+        onlineSubmissionUrl: `data:image/png;base64,${base64Image}`,
+        requirements: requirements,
+      },
+    };
+
+    // Clear the timeout when processing is complete
+    if (timeoutId) clearTimeout(timeoutId);
   } catch (error: unknown) {
     console.error('Error processing photo:', error);
     if (error instanceof Error) {
-      console.error('Error details:', error.message);
-      console.error('Error stack:', error.stack);
+      jobs[jobId] = { status: 'failed', error: error.message };
+    } else {
+      jobs[jobId] = { status: 'failed', error: 'An unknown error occurred' };
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to process photo' }, { status: 500 });
   } finally {
-    clearTimeout(timeoutId);
+    // Ensure the timeout is cleared even if an error occurs
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
