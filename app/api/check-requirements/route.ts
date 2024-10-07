@@ -123,9 +123,8 @@ Details (only if Semi Pass or Fail, without any prefix)
     return NextResponse.json({ requirementsCheck: parsedRequirements });
   } catch (error) {
     console.error('Error checking requirements with ChatGPT:', error);
-    
     // Return a specific error code for rate limit errors
-    if (error.status === 429) {
+    if (error instanceof Error && 'status' in error && error.status === 429) {
       return NextResponse.json({ error: 'API rate limit exceeded', code: 'RATE_LIMIT' }, { status: 429 });
     }
     

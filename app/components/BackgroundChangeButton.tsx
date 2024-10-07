@@ -13,7 +13,7 @@ export const BackgroundChangeButton: React.FC<BackgroundChangeButtonProps> = ({ 
       disabled={disabled}
       className="px-6"
     >
-      Improve Background for $2.99
+      Improve Background
     </Button>
   );
 };

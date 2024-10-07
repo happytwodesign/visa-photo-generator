@@ -22,6 +22,7 @@ import { SuccessModal } from './components/SuccessModal';
 import { INITIAL_REQUIREMENTS } from './constants';
 import RequirementsList from './components/RequirementsList';
 import RequirementsCheck from './components/RequirementsCheck';
+import FacePokeModal from './components/FacePokeModal';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -104,6 +105,7 @@ export default function Home() {
   const [detailedRequirements, setDetailedRequirements] = useState<Record<string, { status: 'met' | 'not_met' | 'uncertain', message?: string }>>({});
   const [initialRequirements, setInitialRequirements] = useState<string[]>(INITIAL_REQUIREMENTS);
   const [requirementsCheck, setRequirementsCheck] = useState<string | null>(null);
+  const [isFacePokeModalOpen, setIsFacePokeModalOpen] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -465,6 +467,44 @@ export default function Home() {
     }
   }, [processedPhoto]);
 
+  const handleOpenFacePokeModal = () => {
+    setIsFacePokeModalOpen(true);
+  };
+
+  const handleCloseFacePokeModal = () => {
+    setIsFacePokeModalOpen(false);
+  };
+
+  const handleSaveFacePokeEdit = async (editedPhotoUrl: string) => {
+    setCurrentPhotoUrl(editedPhotoUrl);
+    setProcessedPhoto(editedPhotoUrl);
+
+    // Re-run requirements check
+    try {
+      const checkResponse = await fetch('/api/check-requirements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photoUrl: editedPhotoUrl }),
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error(`Failed to check requirements: ${checkResponse.statusText}`);
+      }
+
+      const { requirementsCheck } = await checkResponse.json();
+      const updatedRequirements = [
+        { name: "35x45mm photo size", status: "Pass" as const },
+        ...requirementsCheck
+      ];
+      setRequirements(updatedRequirements);
+    } catch (error) {
+      console.error('Error checking requirements:', error);
+      setGenerateError('Failed to update requirements after editing');
+    }
+  };
+
   return (
     <div className={!isMobile ? 'flex flex-col min-h-screen' : ''}>
       <div className="max-w-5xl mx-auto text-[#0F172A] w-full flex flex-col flex-grow">
@@ -578,20 +618,25 @@ export default function Home() {
                   {/* Download button - always at the bottom for non-mobile */}
                   {processedPhoto && !isMobile && (
                     <div className="mt-4 flex flex-col items-end">
-                      {!isBackgroundRemoved ? (
-                        <BackgroundChangeButton 
-                          onClick={handleBackgroundRemoval} 
-                          disabled={isProcessing || isCorrectingBackground}
-                        />
-                      ) : (
-                        <Button 
-                          onClick={handleEmailPhotos} 
-                          className="px-6" 
-                          disabled={isEmailSending}
-                        >
-                          Email photos
+                      <div className="flex space-x-4">
+                        {!isBackgroundRemoved ? (
+                          <BackgroundChangeButton 
+                            onClick={handleBackgroundRemoval} 
+                            disabled={isProcessing || isCorrectingBackground}
+                          />
+                        ) : (
+                          <Button 
+                            onClick={handleEmailPhotos} 
+                            className="px-6" 
+                            disabled={isEmailSending}
+                          >
+                            Email photos
+                          </Button>
+                        )}
+                        <Button onClick={handleOpenFacePokeModal} className="px-6">
+                          Face Correction
                         </Button>
-                      )}
+                      </div>
                       <div className="h-6">
                         {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
                         {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
@@ -608,7 +653,7 @@ export default function Home() {
           <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
             {processedPhoto ? (
               <div className="flex flex-col">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-2">
                   <Button 
                     onClick={handleRetake} 
                     variant="outline" 
@@ -618,20 +663,29 @@ export default function Home() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retake
                   </Button>
-                  {!isBackgroundRemoved ? (
-                    <BackgroundChangeButton 
-                      onClick={handleBackgroundRemoval} 
-                      disabled={isProcessing || isCorrectingBackground} 
-                    />
-                  ) : (
+                  <div className="flex space-x-2">
+                    {!isBackgroundRemoved ? (
+                      <BackgroundChangeButton 
+                        onClick={handleBackgroundRemoval} 
+                        disabled={isProcessing || isCorrectingBackground} 
+                      />
+                    ) : (
+                      <Button 
+                        onClick={handleEmailPhotos} 
+                        className="w-auto px-4" 
+                        disabled={isProcessing || isCorrectingBackground || isEmailSending}
+                      >
+                        Email
+                      </Button>
+                    )}
                     <Button 
-                      onClick={handleEmailPhotos} 
-                      className="w-auto px-6" 
-                      disabled={isProcessing || isCorrectingBackground || isEmailSending}
+                      onClick={handleOpenFacePokeModal} 
+                      className="px-4"
+                      disabled={isProcessing || isCorrectingBackground}
                     >
-                      Email photos
+                      Face Correction
                     </Button>
-                  )}
+                  </div>
                 </div>
                 {downloadError && <p className="text-gray-500 mt-2 text-sm">{downloadError}</p>}
                 {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
@@ -675,6 +729,12 @@ export default function Home() {
           }}
         />
       )}
+      <FacePokeModal
+        isOpen={isFacePokeModalOpen}
+        onClose={handleCloseFacePokeModal}
+        onSave={handleSaveFacePokeEdit}
+        currentPhotoUrl={currentPhotoUrl || ''}
+      />
     </div>
   );
 }
