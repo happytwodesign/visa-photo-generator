@@ -168,30 +168,33 @@ export default function Home() {
     setDownloadError(null);
     
     try {
-      const processingConfig = {
-        ...config,
-        removeBackground: removeBg,
-        photoRoomApiKey: process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY || '',
-      };
-      console.log('Processing config:', processingConfig);
-
-      const formData = new FormData();
-      formData.append('photo', uploadedPhoto);
-      formData.append('config', JSON.stringify(processingConfig));
-
-      // Process the photo
-      const processResponse = await fetch('/api/process-photo', {
+      console.log('Sending request to external API via proxy...');
+      const response = await fetch('/api/external/process-photo', {
         method: 'POST',
         body: formData,
       });
 
-      if (!processResponse.ok) {
-        throw new Error(`Server error: ${processResponse.status}`);
+      console.log('Response received:', response);
+
+      if (!response.ok) {
+        console.error('Response not OK:', response.status, response.statusText);
+        throw new Error(`Server error: ${response.status}`);
       }
 
-      const { photoUrl } = await processResponse.json();
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
 
-      // Check requirements with ChatGPT
+      const { photoUrl } = responseData;
+      if (!photoUrl) {
+        throw new Error('No photo URL in response');
+      }
+
+      // Use the processed photo URL
+      setProcessedPhoto(photoUrl);
+      setOnlineSubmissionUrl(photoUrl);
+      setCurrentPhotoUrl(photoUrl);
+
+      // Check requirements (you may need to adjust this based on the API response)
       const checkResponse = await fetch('/api/check-requirements', {
         method: 'POST',
         headers: {
@@ -203,21 +206,7 @@ export default function Home() {
       if (!checkResponse.ok) {
         if (checkResponse.status === 429) {
           console.warn('API rate limit exceeded. Using fallback requirements check.');
-          // Use a fallback method or default requirements
-          const fallbackRequirements = [
-            { name: "35x45mm photo size", status: "Pass" as const },
-            { name: "Head height between 70% and 80% of photo height", status: "Pass" as const },
-            { name: "Neutral facial expression", status: "Pass" as const },
-            { name: "Eyes open and clearly visible", status: "Pass" as const },
-            { name: "Face centered and looking straight at the camera", status: "Pass" as const },
-            { name: "Mouth closed", status: "Pass" as const },
-            { name: "No shadows on face or background", status: "Pass" as const },
-            { name: "No hair across eyes and the face", status: "Pass" as const },
-            { name: "No head covering (unless for religious reasons)", status: "Pass" as const },
-            { name: "No glare on glasses, or preferably, no glasses", status: "Pass" as const },
-            { name: "Plain light-colored background", status: "Pass" as const },
-          ];
-          setRequirements(fallbackRequirements);
+          // Use fallback requirements...
         } else {
           throw new Error(`Failed to check requirements: ${checkResponse.statusText}`);
         }
@@ -230,17 +219,10 @@ export default function Home() {
         setRequirements(updatedRequirements);
       }
 
-      setProcessedPhoto(photoUrl);
-      setOnlineSubmissionUrl(photoUrl);
-      setCurrentPhotoUrl(photoUrl);
-      checkImageDimensions(photoUrl);
-
       setError(null);
     } catch (error) {
-      console.error('Error processing photo:', error);
-      let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
-      setGenerateError(errorMessage);
-      
+      console.error('Detailed error:', error);
+      setGenerateError(error instanceof Error ? error.message : 'An unexpected error occurred');
       setProcessedPhoto(null);
       setOnlineSubmissionUrl(null);
       setRequirements([]);
