@@ -169,6 +169,11 @@ export default function Home() {
     
     try {
       console.log('Sending request to external API via proxy...');
+      
+      const formData = new FormData();
+      formData.append('photo', uploadedPhoto);
+      formData.append('config', JSON.stringify({})); // Empty config for now
+
       const response = await fetch('/api/external/process-photo', {
         method: 'POST',
         body: formData,
@@ -189,7 +194,6 @@ export default function Home() {
         throw new Error('No photo URL in response');
       }
 
-      // Use the processed photo URL
       setProcessedPhoto(photoUrl);
       setOnlineSubmissionUrl(photoUrl);
       setCurrentPhotoUrl(photoUrl);
