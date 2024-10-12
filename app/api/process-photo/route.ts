@@ -29,7 +29,13 @@ async function loadModels() {
 // Load models when the file is first imported
 loadModels().catch(console.error);
 
+export async function GET(request: NextRequest) {
+  console.log('GET request received, but job processing is no longer supported');
+  return NextResponse.json({ error: 'Job processing is no longer supported' }, { status: 400 });
+}
+
 export async function POST(request: NextRequest) {
+  console.log('Running latest version of process-photo route');
   try {
     console.log('Received POST request for photo processing');
     const formData = await request.formData();

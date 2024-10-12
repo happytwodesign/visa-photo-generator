@@ -168,13 +168,13 @@ export default function Home() {
     setDownloadError(null);
     
     try {
-      console.log('Sending request to external API via proxy...');
+      console.log('Sending request to process photo...');
       
       const formData = new FormData();
       formData.append('photo', uploadedPhoto);
       formData.append('config', JSON.stringify({})); // Empty config for now
 
-      const response = await fetch('/api/external/process-photo', {
+      const response = await fetch('/api/process-photo', {
         method: 'POST',
         body: formData,
       });
