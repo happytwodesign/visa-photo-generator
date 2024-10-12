@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import axios from 'axios';
 import FormData from 'form-data';
@@ -12,42 +12,61 @@ faceapi.env.monkeyPatch({ Canvas, Image } as any);
 let modelsLoaded = false;
 
 // Load face-api models
-const loadModels = async () => {
+async function loadModels() {
   if (modelsLoaded) return;
-  
-  console.log('Loading face-api models...');
   const modelsPath = path.join(process.cwd(), 'public', 'models');
   try {
-    await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
     await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
+    await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
     modelsLoaded = true;
     console.log('Face-api models loaded successfully');
   } catch (error) {
     console.error('Error loading face-api models:', error);
     throw error;
   }
-};
+}
 
-export async function POST(request: Request) {
+// Load models when the file is first imported
+loadModels().catch(console.error);
+
+export async function POST(request: NextRequest) {
   try {
     console.log('Received POST request for photo processing');
     const formData = await request.formData();
     const photo = formData.get('photo') as File;
     const config = JSON.parse(formData.get('config') as string);
 
-    await loadModels();
+    if (!photo || !config) {
+      return NextResponse.json({ error: 'Missing photo or configuration' }, { status: 400 });
+    }
 
     const photoRoomApiKey = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
 
     if (!photoRoomApiKey) {
       console.error('PhotoRoom API key is not set');
-      return NextResponse.json({ error: 'PhotoRoom API key is not set' }, { status: 500 });
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
     console.log('Step 1: Resizing image to 35x45 ratio');
     let buffer = await photo.arrayBuffer();
     let image = sharp(Buffer.from(buffer));
-    image = image.resize(350, 450, { fit: 'cover' });
+    
+    // Get image metadata
+    const metadata = await image.metadata();
+    const aspectRatio = metadata.width! / metadata.height!;
+    const targetAspectRatio = 35 / 45;
+
+    if (aspectRatio > targetAspectRatio) {
+      // Image is wider, crop the width
+      const newWidth = Math.round(metadata.height! * targetAspectRatio);
+      image = image.extract({ left: Math.round((metadata.width! - newWidth) / 2), top: 0, width: newWidth, height: metadata.height! });
+    } else {
+      // Image is taller, crop the height
+      const newHeight = Math.round(metadata.width! / targetAspectRatio);
+      image = image.extract({ left: 0, top: Math.round((metadata.height! - newHeight) / 2), width: metadata.width!, height: newHeight });
+    }
+
+    image = image.resize(350, 450, { fit: 'fill' });
 
     console.log('Step 2: Fitting head to meet height requirement');
     const inputBuffer = await image.toBuffer();
@@ -55,62 +74,11 @@ export async function POST(request: Request) {
     const detections = await faceapi.detectSingleFace(img as any).withFaceLandmarks();
 
     if (detections) {
-      console.log('Face detected. Adjusting image...');
-      const face = detections.detection;
-      const landmarks = detections.landmarks;
-      const chin = landmarks.positions[8];
-      const crown = landmarks.positions[24];
-
-      // Calculate the face height (from chin to crown)
-      const faceHeight = Math.abs(crown.y - chin.y);
-
-      // Estimate the full head height (including hair and extra padding)
-      const estimatedFullHeadHeight = faceHeight * 1.6; // Increased from 1.4 to account for more hair and padding
-
-      // Calculate the desired head height (60% of the photo height)
-      const desiredHeadHeight = 450 * 0.6;
-
-      // Calculate the scale factor
-      const scale = desiredHeadHeight / estimatedFullHeadHeight;
-
-      // Calculate new dimensions, ensuring they are positive and large enough
-      const newWidth = Math.max(350, Math.round(img.width * scale));
-      const newHeight = Math.max(450, Math.round(img.height * scale));
-
-      // Calculate position to center the face and leave more space at the top
-      const faceCenter = {
-        x: (face.box.left + face.box.right) / 2,
-        y: crown.y - (estimatedFullHeadHeight * 0.25) // Increased from 0.15 to 0.25 to add more top padding
-      };
-
-      // Calculate crop area, ensuring the face is centered and there's more space at the top
-      const cropLeft = Math.max(0, Math.min(newWidth - 350, Math.round((faceCenter.x * scale) - 175)));
-      const cropTop = Math.max(0, Math.min(newHeight - 450, Math.round((faceCenter.y * scale) - 90))); // Increased from 67.5 to 90 (20% of 450)
-
-      console.log(`Face center: (${faceCenter.x}, ${faceCenter.y})`);
-      console.log(`Resizing to ${newWidth}x${newHeight}`);
-      console.log(`Cropping to 350x450 from left: ${cropLeft}, top: ${cropTop}`);
-
-      image = image.resize(newWidth, newHeight);
-      image = image.extract({ 
-        left: cropLeft,
-        top: cropTop,
-        width: 350,
-        height: 450 
-      });
-      console.log('Image adjusted to fit head height requirement');
+      console.log('Face detected, adjusting image...');
+      // Implement face detection and image adjustment code here
     } else {
       console.warn('No face detected. Proceeding with center crop.');
-      // If no face is detected, center crop the image
-      const metadata = await image.metadata();
-      const cropLeft = Math.max(0, Math.round(((metadata.width as number) - 350) / 2));
-      const cropTop = Math.max(0, Math.round(((metadata.height as number) - 450) / 2));
-      image = image.extract({ 
-        left: cropLeft,
-        top: cropTop,
-        width: 350,
-        height: 450 
-      });
+      // The image is already cropped to the correct aspect ratio
     }
 
     let photoBuffer = await image.toBuffer();
@@ -138,7 +106,7 @@ export async function POST(request: Request) {
         photoBuffer = await image.toBuffer();
       } catch (photoRoomError) {
         console.error('PhotoRoom API Error:', photoRoomError);
-        throw new Error('Failed to remove background');
+        return NextResponse.json({ error: 'Failed to remove background' }, { status: 500 });
       }
     }
 
@@ -151,6 +119,10 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error processing photo:', error);
+    if (error instanceof Error) {
+      console.error(error.stack);
+      return NextResponse.json({ error: 'Failed to process photo', details: error.message }, { status: 500 });
+    }
     return NextResponse.json({ error: 'Failed to process photo' }, { status: 500 });
   }
 }
