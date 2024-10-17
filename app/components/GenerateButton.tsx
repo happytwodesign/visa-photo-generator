@@ -6,16 +6,25 @@ interface GenerateButtonProps {
   isProcessing: boolean;
   showMessage: boolean;
   className?: string;
+  children?: React.ReactNode;
 }
 
-export default function GenerateButton({ onClick, isProcessing, showMessage, className }: GenerateButtonProps) {
+const GenerateButton: React.FC<GenerateButtonProps> = ({
+  onClick,
+  isProcessing,
+  showMessage,
+  className,
+  children
+}) => {
   return (
     <Button 
       onClick={onClick} 
       disabled={isProcessing}
       className={className}
     >
-      {isProcessing ? 'Processing...' : 'Generate'}
+      {isProcessing ? 'Processing...' : children}
     </Button>
   );
-}
+};
+
+export default GenerateButton;

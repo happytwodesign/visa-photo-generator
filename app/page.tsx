@@ -23,6 +23,7 @@ import { INITIAL_REQUIREMENTS } from './constants';
 import RequirementsList from './components/RequirementsList';
 import RequirementsCheck from './components/RequirementsCheck';
 import FacePokeModal from './components/FacePokeModal';
+import Link from 'next/link';
 
 const convertToJPEG = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -107,6 +108,7 @@ export default function Home() {
   const [requirementsCheck, setRequirementsCheck] = useState<string | null>(null);
   const [isFacePokeModalOpen, setIsFacePokeModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [generatePressed, setGeneratePressed] = useState(false);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -157,12 +159,12 @@ export default function Home() {
   };
 
   const handleGenerate = async () => {
+    setGeneratePressed(true);
     if (!uploadedPhoto) {
       setGenerateError('Please select a photo before generating.');
       return;
     }
 
-    console.log('Client: Starting photo generation process');
     setGenerateError(null);
     setIsProcessing(true);
     setBackgroundRemoved(false);
@@ -515,7 +517,7 @@ export default function Home() {
   };
 
   return (
-    <div className={!isMobile ? 'flex flex-col min-h-screen' : ''}>
+    <div className={`bg-white ${!isMobile ? 'flex flex-col min-h-screen' : ''}`}>
       <div className="max-w-5xl mx-auto text-[#0F172A] w-full flex flex-col flex-grow">
         <div className={!isMobile ? 'flex-grow flex items-center' : ''}>
           <div className={isMobile ? 'w-full px-4' : 'w-full'}>
@@ -550,20 +552,34 @@ export default function Home() {
                             isProcessing={isProcessing} 
                             showMessage={false}
                             className="w-full"
-                          />
+                          >
+                            {uploadedPhoto ? 'Generate' : 'Upload'}
+                          </GenerateButton>
                         ) : null}
                         <div className="h-6 mt-2">
                           {generateError && <p className="text-gray-500 text-sm">{generateError}</p>}
                           {error && <p className="text-gray-500 text-sm">{error}</p>}
                         </div>
                       </div>
+                      {!generatePressed && (
+                        <div className="text-center mt-4">
+                          <p className="text-gray-500 text-xs">
+                            By uploading an image you agree to our{' '}
+                            <Link href="/terms-of-service" className="text-[#0F172A] hover:underline">
+                              Terms of Service
+                            </Link>
+                            . To learn more about how schengenvisaphoto handles your personal data, check our{' '}
+                            <Link href="/privacy-policy" className="text-[#0F172A] hover:underline">
+                              Privacy Policy
+                            </Link>
+                            .
+                          </p>
+                        </div>
+                      )}
                       {processedPhoto && (
                         <div className="flex justify-start mt-4">
                           <Button 
-                            onClick={(e) => {
-                              e.preventDefault();  // Add this line
-                              handleRetake();
-                            }} 
+                            onClick={handleRetake} 
                             variant="outline" 
                             className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
                           >
@@ -667,10 +683,7 @@ export default function Home() {
               <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                   <Button 
-                    onClick={(e) => {
-                      e.preventDefault();  // Add this line
-                      handleRetake();
-                    }} 
+                    onClick={handleRetake} 
                     variant="outline" 
                     className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
                     disabled={isProcessing || isCorrectingBackground}
@@ -716,8 +729,25 @@ export default function Home() {
                     isProcessing={isProcessing} 
                     showMessage={false}
                     className="w-full"
-                  />
+                  >
+                    {uploadedPhoto ? 'Generate' : 'Upload'}
+                  </GenerateButton>
                 </div>
+              </div>
+            )}
+            {!generatePressed && (
+              <div className="text-center mt-4">
+                <p className="text-[rgba(15,23,42,0.40)] text-xs font-medium">
+                  By uploading an image or URL you agree to our{' '}
+                  <Link href="/terms-of-service" className="text-[#0F172A] hover:underline">
+                    Terms of Service
+                  </Link>
+                  . To learn more about how schengenvisaphoto handles your personal data, check our{' '}
+                  <Link href="/privacy-policy" className="text-[#0F172A] hover:underline">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
               </div>
             )}
           </div>
