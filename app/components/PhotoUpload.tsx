@@ -8,7 +8,19 @@ interface PhotoUploadProps {
   onDelete: () => void;
 }
 
-export default function PhotoUpload({ onUpload, uploadedPhotoUrl, onDelete }: PhotoUploadProps) {
+const PhotoUpload = React.memo(({ onUpload, uploadedPhotoUrl, onDelete }: PhotoUploadProps) => {
+  // Add console logs to check if the component is rendering and responding to events
+  console.log('PhotoUpload rendering', { uploadedPhotoUrl });
+
+  const handleUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Upload event triggered');
+    const file = event.target.files?.[0];
+    if (file) {
+      console.log('File selected:', file.name);
+      onUpload(file);
+    }
+  }, [onUpload]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       onUpload(acceptedFiles[0]);
@@ -56,4 +68,6 @@ export default function PhotoUpload({ onUpload, uploadedPhotoUrl, onDelete }: Ph
       )}
     </div>
   );
-}
+});
+
+export default PhotoUpload;

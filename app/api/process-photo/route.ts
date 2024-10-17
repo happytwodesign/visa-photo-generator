@@ -35,100 +35,45 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('Running latest version of process-photo route');
+  console.log('Server: Received POST request for photo processing');
   try {
-    console.log('Received POST request for photo processing');
     const formData = await request.formData();
+    console.log('Server: FormData received');
+
     const photo = formData.get('photo') as File;
-    const config = JSON.parse(formData.get('config') as string);
-
-    if (!photo || !config) {
-      return NextResponse.json({ error: 'Missing photo or configuration' }, { status: 400 });
+    if (!photo) {
+      throw new Error('No photo provided');
     }
+    console.log('Server: Original photo size:', photo.size, 'bytes');
 
-    const photoRoomApiKey = process.env.NEXT_PUBLIC_PHOTOROOM_API_KEY;
-
-    if (!photoRoomApiKey) {
-      console.error('PhotoRoom API key is not set');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
-    console.log('Step 1: Resizing image to 35x45 ratio');
-    let buffer = await photo.arrayBuffer();
-    let image = sharp(Buffer.from(buffer));
-    
-    // Get image metadata
-    const metadata = await image.metadata();
-    const aspectRatio = metadata.width! / metadata.height!;
-    const targetAspectRatio = 35 / 45;
-
-    if (aspectRatio > targetAspectRatio) {
-      // Image is wider, crop the width
-      const newWidth = Math.round(metadata.height! * targetAspectRatio);
-      image = image.extract({ left: Math.round((metadata.width! - newWidth) / 2), top: 0, width: newWidth, height: metadata.height! });
-    } else {
-      // Image is taller, crop the height
-      const newHeight = Math.round(metadata.width! / targetAspectRatio);
-      image = image.extract({ left: 0, top: Math.round((metadata.height! - newHeight) / 2), width: metadata.width!, height: newHeight });
-    }
-
-    image = image.resize(350, 450, { fit: 'fill' });
-
-    console.log('Step 2: Fitting head to meet height requirement');
-    const inputBuffer = await image.toBuffer();
-    const img = await loadImage(inputBuffer);
-    const detections = await faceapi.detectSingleFace(img as any).withFaceLandmarks();
-
-    if (detections) {
-      console.log('Face detected, adjusting image...');
-      // Implement face detection and image adjustment code here
-    } else {
-      console.warn('No face detected. Proceeding with center crop.');
-      // The image is already cropped to the correct aspect ratio
-    }
-
-    let photoBuffer = await image.toBuffer();
-
-    if (config.removeBackground) {
-      console.log('Step 3: Removing background using PhotoRoom API');
-      const photoRoomFormData = new FormData();
-      photoRoomFormData.append('image_file', photoBuffer, {
-        filename: 'image.png',
-        contentType: 'image/png',
-      });
-
-      try {
-        const photoRoomResponse = await axios.post('https://sdk.photoroom.com/v1/segment', photoRoomFormData, {
-          headers: {
-            ...photoRoomFormData.getHeaders(),
-            'x-api-key': photoRoomApiKey,
-          },
-          responseType: 'arraybuffer',
-        });
-
-        console.log('Background removed successfully');
-        image = sharp(photoRoomResponse.data);
-        image = image.resize(350, 450, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } });
-        photoBuffer = await image.toBuffer();
-      } catch (photoRoomError) {
-        console.error('PhotoRoom API Error:', photoRoomError);
-        return NextResponse.json({ error: 'Failed to remove background' }, { status: 500 });
-      }
-    }
-
-    console.log('Converting processed image to base64');
-    const base64Image = photoBuffer.toString('base64');
-
-    return NextResponse.json({
-      photoUrl: `data:image/png;base64,${base64Image}`,
+    console.log('Server: Sending request to external API...');
+    const externalApiResponse = await fetch('http://167.99.227.46:3002/process-photo', {
+      method: 'POST',
+      body: formData,
     });
 
-  } catch (error) {
-    console.error('Error processing photo:', error);
-    if (error instanceof Error) {
-      console.error(error.stack);
-      return NextResponse.json({ error: 'Failed to process photo', details: error.message }, { status: 500 });
+    console.log('Server: External API response status:', externalApiResponse.status);
+
+    if (!externalApiResponse.ok) {
+      const errorText = await externalApiResponse.text();
+      console.error('Server: External API error details:', errorText);
+      throw new Error(`External API error: ${externalApiResponse.status} - ${errorText}`);
     }
-    return NextResponse.json({ error: 'Failed to process photo' }, { status: 500 });
+
+    const data = await externalApiResponse.json();
+    console.log('Server: Processed data received from external API');
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Server: Error processing photo:', error);
+    // Return a more detailed error message
+    return NextResponse.json(
+      { 
+        error: 'Failed to process photo', 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      }, 
+      { status: 500 }
+    );
   }
 }

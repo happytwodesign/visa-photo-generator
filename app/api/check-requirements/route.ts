@@ -56,9 +56,22 @@ function parseOpenAIResponse(response: string): Requirement[] {
 }
 
 export async function POST(request: Request) {
+  console.log('Server: Received request for requirements check');
   try {
     const { photoUrl } = await request.json();
+    console.log('Server: Received photo URL for requirements check');
 
+    // Log a truncated version of the URL or just the file name
+    const urlParts = new URL(photoUrl);
+    const fileName = urlParts.pathname.split('/').pop();
+    console.log('Server: Processing image:', fileName);
+
+    // Fetch the image to get its size
+    const imageResponse = await fetch(photoUrl);
+    const imageBlob = await imageResponse.blob();
+    console.log('Server: Image size for requirements check:', imageBlob.size, 'bytes');
+
+    console.log('Server: Sending request to OpenAI for analysis');
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -74,9 +87,9 @@ ${requirementNames.map((name, index) => `${index + 1}. ${name}`).join('\n')}
 Use the following guidelines:
 
 1. Head height between 70% and 80% of photo height:
-   - Pass: 60-80% of photo height
-   - Semi Pass: 50-60% of photo height
-   - Fail: <50% or >80% of photo height
+   - Pass: 65-80% of photo height
+   - Semi Pass: 60-65% of photo height
+   - Fail: <60% or >80% of photo height
 
 2. Mouth closed:
    - Pass: Fully closed or slightly open
@@ -120,9 +133,11 @@ Details (only if Semi Pass or Fail, without any prefix)
     }
     const parsedRequirements = parseOpenAIResponse(requirementsCheck);
 
+    console.log('Server: Requirements check result:', parsedRequirements);
+
     return NextResponse.json({ requirementsCheck: parsedRequirements });
   } catch (error) {
-    console.error('Error checking requirements with ChatGPT:', error);
+    console.error('Server: Error checking requirements with ChatGPT:', error);
     // Return a specific error code for rate limit errors
     if (error instanceof Error && 'status' in error && error.status === 429) {
       return NextResponse.json({ error: 'API rate limit exceeded', code: 'RATE_LIMIT' }, { status: 429 });

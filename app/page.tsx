@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PhotoUpload from './components/PhotoUpload';
 import GenerateButton from './components/GenerateButton';
 import PhotoPreview from './components/PhotoPreview';
@@ -106,6 +106,7 @@ export default function Home() {
   const [initialRequirements, setInitialRequirements] = useState<string[]>(INITIAL_REQUIREMENTS);
   const [requirementsCheck, setRequirementsCheck] = useState<string | null>(null);
   const [isFacePokeModalOpen, setIsFacePokeModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const storedRemoveBg = localStorage.getItem('removeBg');
@@ -119,7 +120,8 @@ export default function Home() {
     localStorage.setItem('removeBg', JSON.stringify(checked));
   };
 
-  const handlePhotoUpload = async (file: File) => {
+  const handlePhotoUpload = useCallback(async (file: File) => {
+    console.log('handlePhotoUpload called with file:', file.name);
     try {
       let processedFile = await convertHeicToJpeg(file);
       processedFile = await convertToJPEG(processedFile);
@@ -133,7 +135,7 @@ export default function Home() {
       console.error('Error processing photo:', error);
       setError('Failed to process the uploaded photo. Please try a different image.');
     }
-  };
+  }, []);
 
   const checkImageDimensions = (url: string) => {
     const img = document.createElement('img');
@@ -160,6 +162,7 @@ export default function Home() {
       return;
     }
 
+    console.log('Client: Starting photo generation process');
     setGenerateError(null);
     setIsProcessing(true);
     setBackgroundRemoved(false);
@@ -168,37 +171,41 @@ export default function Home() {
     setDownloadError(null);
     
     try {
-      console.log('Sending request to process photo...');
-      
+      console.log('Client: Original uploaded image size:', uploadedPhoto.size, 'bytes');
+
       const formData = new FormData();
       formData.append('photo', uploadedPhoto);
-      formData.append('config', JSON.stringify({})); // Empty config for now
+      formData.append('config', JSON.stringify({})); // Empty config object
 
-      const response = await fetch('/api/process-photo', {
+      console.log('Client: Sending request to external API via proxy...');
+      const response = await fetch('/api/external/process-photo', {
         method: 'POST',
         body: formData,
       });
 
-      console.log('Response received:', response);
+      console.log('Client: Received response from external API. Status:', response.status);
 
       if (!response.ok) {
-        console.error('Response not OK:', response.status, response.statusText);
-        throw new Error(`Server error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Client: External API error details:', errorText);
+        throw new Error(`External API error: ${response.status} - ${errorText}`);
       }
 
       const responseData = await response.json();
-      console.log('Response data:', responseData);
+      console.log('Client: Processed image data:', responseData);
 
       const { photoUrl } = responseData;
       if (!photoUrl) {
         throw new Error('No photo URL in response');
       }
 
+      console.log('Client: Setting processed photo URL:', photoUrl);
       setProcessedPhoto(photoUrl);
       setOnlineSubmissionUrl(photoUrl);
       setCurrentPhotoUrl(photoUrl);
 
-      // Check requirements (you may need to adjust this based on the API response)
+      // Continue with requirements check...
+      console.log('Client: Starting requirements check...');
       const checkResponse = await fetch('/api/check-requirements', {
         method: 'POST',
         headers: {
@@ -206,6 +213,8 @@ export default function Home() {
         },
         body: JSON.stringify({ photoUrl }),
       });
+
+      console.log('Client: Requirements check response status:', checkResponse.status);
 
       if (!checkResponse.ok) {
         if (checkResponse.status === 429) {
@@ -216,6 +225,7 @@ export default function Home() {
         }
       } else {
         const { requirementsCheck } = await checkResponse.json();
+        console.log('Client: Requirements check result:', requirementsCheck);
         const updatedRequirements = [
           { name: "35x45mm photo size", status: "Pass" as const },
           ...requirementsCheck
@@ -224,36 +234,40 @@ export default function Home() {
       }
 
       setError(null);
+      console.log('Client: Photo generation process completed successfully');
     } catch (error) {
-      console.error('Detailed error:', error);
+      console.error('Client: Detailed error:', error);
       setGenerateError(error instanceof Error ? error.message : 'An unexpected error occurred');
       setProcessedPhoto(null);
       setOnlineSubmissionUrl(null);
       setRequirements([]);
     } finally {
       setIsProcessing(false);
+      console.log('Client: Photo generation process finished');
     }
   };
 
   const handleRetake = () => {
+    // Clear all photo-related states
     setUploadedPhoto(null);
-    setUploadedPhotoUrl(null);
+    setUploadedPhotoUrl(null);  // Add this line
     setProcessedPhoto(null);
     setOnlineSubmissionUrl(null);
+    setCurrentPhotoUrl(null);
     setRequirements([]);
-    setError(null);
+    
+    // Reset all processing and error states
+    setGenerateError(null);
+    setIsProcessing(false);
     setBackgroundRemoved(false);
     setBackgroundChangeInitiated(false);
-    setDownloadError(null);
-    setGenerateError(null);
-    setCurrentPhotoUrl(null);
     setIsBackgroundRemoved(false);
-    setIsCorrectingBackground(false);
-    setIsProcessing(false);
-    setShowEmailModal(false);
-    setEmailSent(false);
-    setSentEmail('');
-    setIsEmailSending(false);
+    setDownloadError(null);
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDeletePhoto = () => {
@@ -397,46 +411,23 @@ export default function Home() {
     }
   };
 
-  const handleDownload = async () => {
-    if (!selectedSize) {
-      setDownloadError('Please select an option to download.');
-      return;
-    }
-
-    setDownloadError(null);
-
-    if (!currentPhotoUrl) {
-      setDownloadError('No photo available for download.');
-      return;
-    }
-
-    if (selectedSize === 'online') {
-      const link = document.createElement('a');
-      link.href = currentPhotoUrl;
-      link.download = 'schengen_visa_photo_online.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      const paperSizes = ['A4', 'A5', 'A6'];
-      if (paperSizes.includes(selectedSize)) {
-        try {
-          const templates = await generateTemplates(currentPhotoUrl);
-          const blob = templates[paperSizes.indexOf(selectedSize)];
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `schengen_visa_photo_${selectedSize.toLowerCase()}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        } catch (error) {
-          console.error('Error generating templates:', error);
-          setDownloadError('Failed to generate templates for download.');
-        }
-      }
-    }
+  const handleDownload = (photoUrl: string, fileName: string) => {
+    fetch(photoUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error => {
+        console.error('Download failed:', error);
+        setDownloadError('Failed to download the photo. Please try again.');
+      });
   };
 
   useEffect(() => {
@@ -448,6 +439,7 @@ export default function Home() {
 
   // Update currentPhotoUrl when processedPhoto changes
   useEffect(() => {
+    console.log('useEffect: currentPhotoUrl updated', currentPhotoUrl);
     if (processedPhoto) {
       setCurrentPhotoUrl(processedPhoto);
     }
@@ -489,6 +481,37 @@ export default function Home() {
       console.error('Error checking requirements:', error);
       setGenerateError('Failed to update requirements after editing');
     }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedPhoto(file);
+      setProcessedPhoto(null);
+      setOnlineSubmissionUrl(null);
+      setCurrentPhotoUrl(URL.createObjectURL(file));
+      setRequirements([]);
+      setGenerateError(null);
+      setIsProcessing(false); // Add this line to clear the processing state
+      setBackgroundRemoved(false);
+      setBackgroundChangeInitiated(false);
+      setIsBackgroundRemoved(false);
+      setDownloadError(null);
+    }
+  };
+
+  const handleDeleteUpload = () => {
+    setUploadedPhoto(null);
+    setProcessedPhoto(null);
+    setOnlineSubmissionUrl(null);
+    setCurrentPhotoUrl(null);
+    setRequirements([]);
+    setGenerateError(null);
+    setIsProcessing(false); // Add this line to clear the processing state
+    setBackgroundRemoved(false);
+    setBackgroundChangeInitiated(false);
+    setIsBackgroundRemoved(false);
+    setDownloadError(null);
   };
 
   return (
@@ -537,7 +560,10 @@ export default function Home() {
                       {processedPhoto && (
                         <div className="flex justify-start mt-4">
                           <Button 
-                            onClick={handleRetake} 
+                            onClick={(e) => {
+                              e.preventDefault();  // Add this line
+                              handleRetake();
+                            }} 
                             variant="outline" 
                             className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
                           >
@@ -641,7 +667,10 @@ export default function Home() {
               <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                   <Button 
-                    onClick={handleRetake} 
+                    onClick={(e) => {
+                      e.preventDefault();  // Add this line
+                      handleRetake();
+                    }} 
                     variant="outline" 
                     className="flex items-center border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
                     disabled={isProcessing || isCorrectingBackground}
